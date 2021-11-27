@@ -1,0 +1,13 @@
+# fui
+*.fui
+# fui backup file from Hxd
+*.fui.* 
+
+# python cache
+/python/__pycache__
+
+# misc
+*.bin
+/output
+# venv
+/fui
