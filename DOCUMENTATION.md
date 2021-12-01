@@ -19,7 +19,7 @@ The following Table gives you Important information about each structure that ca
 | fuiFontName | 0x104 | 
 | fuiSymbol | 0x48 | Defined Symbols with Name and Object type
 | fuiImportAsset | 0x40 | Assests Imports form other .swf/.fui files
-| fuiBitmap | 0x20 | Base Information about the Image
+| fuiBitmap | 0x20 | Base Information about an Image/Shape contained in the file
 
 Most data in a FUI structure uses the LSB(Little Endian) byte order.
 
@@ -27,16 +27,69 @@ Most data in a FUI structure uses the LSB(Little Endian) byte order.
 These structures are used in some Elements in an FUI file
 | Name | Byte Size | Description |
 | :-:|:-:|:-:|
-| fuiRect | 0x10 | A Representation of a Rectangle like in the swf docs (min X, max X, min Y, max Y) or (X, Width, Y, Height)
+| fuiRect | 0x10 | A Representation of a Rectangle
 | fuiRGBA | 0x4 | Base Color format used in FUI
 | fuiMatrix | 0x18 | 
 | fuiColorTransform | 0x20 | 
-| fuiFillStyle | 0x1c | Contains Information for filling 
+| fuiFillStyle | 0x24 | Contains Information for filling 
 | fuiObject.eFuiObjectType | 0x4 | Describes the Type of some Elements
+
+## fuiRect
+
+| Name | Offset | Byte Size | Type | Description |
+| :-:|:-:|:-:|:-:|:-:|
+| X (min X) | 0x0 | 4 | float | Minimun X position of the Rectangle
+| Width (max X) | 0x4 | 4 | float | Maximun X position of the Rectangle
+| Y (min Y) | 0x8 | 4 | float | Minimun Y position of the Rectangle
+| Height (max Y) | 0xc | 4 | float | Maximun Y position of the Rectangle
+
+## fuiRGBA
+
+| Name | Offset | Byte Size | Type | Description |
+| :-:|:-:|:-:|:-:|:-:|
+| Color | 0x0 | 4 | int | Hex Color in RGBA byte order
+
+## fuiMatrix
+This is Untested just referenced by the .swf file docs!!
+
+| Name | Offset | Byte Size | Type | Description |
+| :-:|:-:|:-:|:-:|:-:|
+| Scale X | 0x0 | 4 | float | 
+| Scale Y | 0x4 | 4 | float | 
+| Rotate Skew 0 | 0x8 | 4 | float | 
+| Rotate Skew 1 | 0xc | 4 | float | 
+| Translate X | 0x10 | 4 | float | 
+| Translate Y | 0x14 | 4 | float | 
+
+## fuiColorTransform
+This is Untested just referenced by the .swf file docs!!\
+This Might also be [`Color transform with alpha record` (page 25)](https://www.adobe.com/content/dam/acom/en/devnet/pdf/swf-file-format-spec.pdf).
+
+| Name | Offset | Byte Size | Type | Description |
+| :-:|:-:|:-:|:-:|:-:|
+| HasAddTerm | 0x0 | 4 | bool | 
+| HasMultTerm | 0x4 | 4 | bool | 
+| RedMultTerm | 0x8 | 4 | float | 
+| GrennMultTerm | 0xc | 4 | float | 
+| BlueMultTerm | 0x10 | 4 | float | 
+| RedAddTerm | 0x14 | 4 | float | 
+| GrennAddTerm | 0x18 | 4 | float | 
+| BlueAddTerm | 0x1c | 4 | float | 
+
+## fuiFillStyle
+This is Untested just referenced by the .swf file docs!!
+
+| Name | Offset | Byte Size | Type | Description |
+| :-:|:-:|:-:|:-:|:-:|
+| Unknown | 0x0 | 4 | int | 
+| Color | 0x4 | 4 | fuiRGBA | 
+| Unknown | 0x8 | 4 | int | 
+| Matrix | 0xc | 0x18 | fuiMatrix | 
 
 
 ## FUI Header
-The Table below describes all members of the FUI Header
+The Table below describes all members of the FUI Header:
+
 | Name | Offset | Byte Size | Type | Description |
 | :-:|:-:|:-:|:-:|:-:|
 | Identifier | 0x0 | 4 | char[] | FUI Header Magic (b'\x01IUF') first value (\x01) probably indecates the version of the fui file
@@ -90,7 +143,7 @@ Timeline member:
 
 | Name | Offset | Byte Size | Type | Description |
 | :-:|:-:|:-:|:-:|:-:|
-| Fill Info | 0x0 | 0x1c | fuiFillStyle | Component Fill Info
+| Fill Info | 0x0 | 0x24 | fuiFillStyle | Component Fill Info
 | Unknown | 0x24 | 4 | int | 
 | Unknown | 0x28 | 4 | int | 
 
@@ -128,9 +181,9 @@ Timeline member:
 
 | Name | Offset | Byte Size | Type | Description |
 | :-:|:-:|:-:|:-:|:-:|
-| Unknown | 0x0 | 4 | int | Maybe fuiObject.eFuiObjectType
+| Symbol Index | 0x0 | 4 | int | Index of Symbol (resolved at runtime)
 | Reference Name | 0x4 | 0x40 | char[] | 
-| Unknown | 0x4 | 4 | int | 
+| Unknown | 0x44 | 4 | int | fuiFile Index (resolved at runtime)
 
 ## fuiEdittext
 
@@ -145,6 +198,8 @@ Timeline member:
 | html text format | 0x38 | 0x100 | char[] | 
 
 ## fuiFontName
+
+TODO: get proper names and types!
 
 | Name | Offset | Byte Size | Type | Description |
 | :-:|:-:|:-:|:-:|:-:|
@@ -162,13 +217,14 @@ Timeline member:
 | Name | Offset | Byte Size | Type | Description |
 | :-:|:-:|:-:|:-:|:-:|
 | Symbol Name | 0x0 | 0x40 | char[] | Name of the Symbol
-| Object Type | 0x40 | 4 | int | Unknown for what its used
+| Object Type | 0x40 | 4 | int | 
 | Unknown | 0x44 | 4 | int | 
 
 ## fuiImportAsset
 
 | Name | Offset | Byte Size | Type | Description |
 | :-:|:-:|:-:|:-:|:-:|
+| Name | 0x0 | 0x40 | char[] | File Name to import from
 
 ## fuiBitmap
 
@@ -181,3 +237,4 @@ Timeline member:
 | Size 1 | 0x10 | 4 | int | Mostly used to identify compressed image size
 | Size 2 | 0x14 | 4 | int | 
 | Unknown | 0x18 | 4 | int | 
+| Unknown | 0x1c | 4 | int | 
