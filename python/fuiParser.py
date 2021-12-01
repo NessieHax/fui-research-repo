@@ -34,9 +34,6 @@ class fuiParser:
             "images_size"           : makeHeaderInfo(self.__header.data_counts, 12, 0x1),  #! 0x7c | size of bytes at the end
         }
 
-    def parse(self) -> None:
-        pass
-
     @property
     def HeaderDataInfo(self) -> dict:
         return self.__HeaderDataInfo
@@ -45,19 +42,30 @@ class fuiParser:
     def header(self) -> fuiHeader:
         return self.__header
 
+    #! sets up Object lists for rebuilding
+    def parse(self) -> None:
+        pass
+
+    #! used to rebuild fui file structure
+    def rebuild(self) -> None:
+        pass
+
     def __get_data_format(self, data_format:str, offset:int) -> tuple:
         size:int = struct.calcsize(data_format)
         return struct.unpack(data_format, self.__raw_data[offset:offset+size])
-
-    def __get_data(self, offset:int, size:int) -> bytearray:
+    
+    def __get_raw_data(self, offset:int, size:int) -> bytearray:
         return self.__get_data_format(f"{size}s", offset)[0]
 
-    def __get_data_by_section_name(self, section_name:str, index:int = 0) -> bytearray:
+    def __get_data_list(self, data_format:str, section_name:str) -> list[tuple]:
+        return [self.__get_data_format(data_format, self.get_start_offset_of(section_name) + i * self.__HeaderDataInfo[section_name].element_size) for i in range(self.__HeaderDataInfo[section_name].count)]
+
+    def __get_raw_data_by_section_name(self, section_name:str, index:int = 0) -> bytearray:
         offset:int = self.get_start_offset_of(section_name) + index * self.__HeaderDataInfo[section_name].element_size
-        return self.__get_data(offset, self.__HeaderDataInfo[section_name].element_size)
+        return self.__get_raw_data(offset, self.__HeaderDataInfo[section_name].element_size)
     
     def __get_string(self, section_name:str, index:int, string_buffer_size:int, padding_before:int = 0, padding_after:int = 0) -> str:
-        return self.__get_data_by_section_name(section_name, index)[padding_before:string_buffer_size].decode("UTF-8").replace("\0","")
+        return self.__get_raw_data_by_section_name(section_name, index)[padding_before:string_buffer_size].decode("UTF-8").replace("\0","")
 
     def __get_strings(self, section_name:str, string_buffer_size:int, padding_before:int = 0, padding_after:int = 0) -> list:
         return [self.__get_string(section_name, i, string_buffer_size, padding_before=padding_before, padding_after=padding_after) for i in range(self.HeaderDataInfo[section_name].count)]
@@ -81,38 +89,63 @@ class fuiParser:
         return self.__get_strings("fuiTimelineAction", 0x80, padding_before=4)
 
     def get_references(self) -> list:
-        return self.__get_strings("fuiReference", 0x40, padding_before=4, padding_after=4)
+        return self.__get_data_list("<i64si", "fuiReference")
+        # return self.__get_strings("fuiReference", 0x40, padding_before=4, padding_after=4)
 
     def get_bitmaps(self) -> list:
-        return [self.__get_data_format("<8x4I8x", self.get_start_offset_of("fuiBitmap") + i * self.__HeaderDataInfo["fuiBitmap"].element_size) for i in range(self.__HeaderDataInfo["fuiBitmap"].count)]
+        return self.__get_data_list("<4x5I8x", "fuiBitmap")
 
+    def get_symbol_data(self) -> list:
+        return self.__get_data_list("<64x2I", "fuiSymbol")
+
+    def get_shape_component_data(self) -> list:
+        return self.__get_data_list("<3I6f2I", "fuiShapeComponent")
+
+    def get_timeline_event_data(self) -> list:
+        return self.__get_data_list("<6h6f8fI", "fuiTimelineEvent")
+    
+    def get_timeline_data(self) -> list:
+        return self.__get_data_list("<i4h4f", "fuiTimeline")
+
+    def __dump_image(self, output_file:str, start:int, size:int) -> None:
+        png_header_magic = b'\x89PNG'
+        out_data = self.__get_raw_data(start, size)
+        ext:str = "png" if out_data[0:4] == png_header_magic else "jpeg"
+        print(f"Dumping: {output_file}.{ext}")
+        with open(f"{output_file}.{ext}", "wb") as out: out.write(out_data)
+
+    #! TODO: fix dumping to work with assigned name(symbol)
     def get_images(self, output_path:str) -> None:
+        return
         header_info = self.HeaderDataInfo["fuiBitmap"]
         count, element_size, size  = header_info.count, header_info.element_size, header_info.section_size
         start:int = self.get_start_offset_of("fuiBitmap")
         image_start:int = start + size
-        png_header_magic = b'\x89PNG'
 
-        # symbols = self.get_symbols()
         bitmaps = self.get_bitmaps()
-        # print(f"{bitmaps=}")
-        for i, (w,h, size1, size2) in enumerate(bitmaps):
-            # is_bitmap = sym_data["end_padd"][0] == 3
-            # if not is_bitmap: continue
-            # print(f"\n{sym_text}: {is_bitmap=}")
-            print(self.__get_string("fuiSymbol", i, 0x40))
+        last_pos:list = []
+        for pos in range(self.__HeaderDataInfo["fuiSymbol"].count):
+            data = self.__get_raw_data_by_section_name("fuiSymbol", pos)
+            symbol_type = int.from_bytes(data[0x40:0x44],"little")
+            if symbol_type == 3: last_pos.append(data[:0x40].decode('UTF-8').replace("\0", ""))
+        bitmap_pos:int = 0
+        # print(last_pos)
+        for bitmap_type, w,h, size1, size2 in bitmaps:
+            # if not bitmap_type == 3: continue
+
+            bitmap_name = last_pos[bitmap_pos]
+            # print(bitmap_name)
 
             fmt:str = "<8x2I4xI8x"
-            pos:int = start + i * element_size
-            buffer:bytes = self.__get_data(pos, element_size)
-            buffer = struct.unpack(fmt, buffer)
+            if struct.calcsize(fmt) != element_size: raise Exception("Format doesnt match element size!")
+            pos:int = start + bitmap_pos * element_size
+            buffer = self.__get_data_format(fmt, pos)
             # print(f"{buffer[0]}x{buffer[1]}") #! scale Width and hight used in game
             image_size = buffer[2]
-            out_data = self.__get_data(image_start, image_size)
-            ext:str = "png" if out_data[0:4] == png_header_magic else "jpeg"
+            self.__dump_image(f"{output_path}/{bitmap_name}", image_start, image_size)
+            bitmap_pos += 1
             image_start += image_size
-            with open(f"{output_path}/image_{i}.{ext}", "wb") as out: out.write(out_data)
-        print(f"Dumped {count} images")
+        print(f"Dumped {bitmap_pos} images")
 
     def get_start_offset_of(self, section_name:str) -> int:
         if section_name not in self.HeaderDataInfo.keys() or self.HeaderDataInfo[section_name].count == 0: return -1
