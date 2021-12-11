@@ -92,7 +92,7 @@ The Table below describes all members of the FUI Header:
 
 | Name | Offset | Byte Size | Type | Description |
 | :-:|:-:|:-:|:-:|:-:|
-| Identifier | 0x0 | 4 | char[] | FUI Header Magic (b'\x01IUF') first value (\x01) probably indecates the version of the fui file
+| Identifier | 0x0 | 4 | char[] | FUI Header Magic (b'\x01IUF') first value (\x01) indecates the version of the fui file
 | Unknow | 0x4 | 4 | int | Unknow Value
 | Content Size | 0x8 | 4 | int | Size of the up coming data in the FUI file
 | Swf File Name | 0xc | 0x40 | char[] | Name of the .swf file
