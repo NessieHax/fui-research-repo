@@ -1,13 +1,21 @@
 import struct
 from dataclasses import dataclass, field
 
-from fuiHeader import fuiHeader, swapLE32
+from fuiHeader import fuiHeader
+from fuiDataStructures.fuiImportAsset import fuiImportAsset
+from fuiDataStructures.fuiBitmap import fuiBitmap
+from fuiDataStructures.fuiSymbol import fuiSymbol
+from fuiDataStructures.fuiTimeline import fuiTimeline
+from fuiDataStructures.fuiReference import fuiReference
+from fuiDataStructures.fuiVert import fuiVert
+from fuiDataStructures.fuiTimelineEvent import fuiTimelineEvent
+from fuiDataStructures.fuiTimelineFrame import fuiTimelineFrame
 
 @dataclass
 class HeaderInfo:
-    count:int = field()
-    element_size:int = field()
-    section_size:int = field()
+    count:int = field(default_factory=int)
+    element_size:int = field(default_factory=int)
+    section_size:int = field(default_factory=int)
 
 def makeHeaderInfo(data:list , index:int, element_size:int) -> HeaderInfo:
     return HeaderInfo(data[index], element_size, data[index]*element_size)
@@ -42,6 +50,13 @@ class fuiParser:
     def header(self) -> fuiHeader:
         return self.__header
 
+    def validate_class_size(self, section_name:str, cls) -> bool:
+        """ Returns `true` if the fmt property of a class equals the data type element size """
+        return struct.calcsize(cls.fmt) == self.HeaderDataInfo[section_name].element_size
+
+    def is_valid_index(self, section_name:str, index:int) -> bool:
+        return index < self.HeaderDataInfo[section_name].count and index > -1
+
     #! sets up Object lists for rebuilding
     def parse(self) -> None:
         pass
@@ -52,66 +67,63 @@ class fuiParser:
 
     def __get_data_format(self, data_format:str, offset:int) -> tuple:
         size:int = struct.calcsize(data_format)
-        return struct.unpack(data_format, self.__raw_data[offset:offset+size])
+        return struct.unpack(data_format, self.__get_raw_data(offset, size))
     
     def __get_raw_data(self, offset:int, size:int) -> bytearray:
-        return self.__get_data_format(f"{size}s", offset)[0]
+        return self.__raw_data[offset:offset+size]
 
-    def __get_data_list(self, data_format:str, section_name:str) -> list[tuple]:
-        return [self.__get_data_format(data_format, self.get_start_offset_of(section_name) + i * self.__HeaderDataInfo[section_name].element_size) for i in range(self.__HeaderDataInfo[section_name].count)]
+    def __get_data_type(self, section_name:str, cls, index:int = 0):
+        x = self.__get_raw_data(self.__get_indexed_offset(section_name,index), self.HeaderDataInfo[section_name].element_size)
+        return cls(x)
+
+    def __get_data_type_list(self, section_name:str, cls) -> list:
+        return [self.__get_data_type(section_name, cls, i) for i in range(self.__HeaderDataInfo[section_name].count)]
+
+    def __get_indexed_offset(self, section_name:str, index:int = 0) -> int:
+        if not self.is_valid_index(section_name, index): raise Exception("Index out of range")
+        return self.get_start_offset_of(section_name) + index * self.__HeaderDataInfo[section_name].element_size if index < self.__HeaderDataInfo[section_name].count else -1
 
     def __get_raw_data_by_section_name(self, section_name:str, index:int = 0) -> bytearray:
-        offset:int = self.get_start_offset_of(section_name) + index * self.__HeaderDataInfo[section_name].element_size
-        return self.__get_raw_data(offset, self.__HeaderDataInfo[section_name].element_size)
-    
-    def __get_string(self, section_name:str, index:int, string_buffer_size:int, padding_before:int = 0, padding_after:int = 0) -> str:
-        return self.__get_raw_data_by_section_name(section_name, index)[padding_before:string_buffer_size].decode("UTF-8").replace("\0","")
-
-    def __get_strings(self, section_name:str, string_buffer_size:int, padding_before:int = 0, padding_after:int = 0) -> list:
-        return [self.__get_string(section_name, i, string_buffer_size, padding_before=padding_before, padding_after=padding_after) for i in range(self.HeaderDataInfo[section_name].count)]
+        offset:int = self.__get_indexed_offset(section_name, index)
+        return self.__get_raw_data(offset, self.HeaderDataInfo[section_name].element_size)
 
     def get_imported_assets(self) -> list:
-        return self.__get_strings("fuiImportAsset", 0x40)
+        return self.__get_data_type_list("fuiImportAsset", fuiImportAsset)
 
     def get_fonts(self) -> list:
-        return self.__get_strings("fuiFontName", 0x40, padding_before=4, padding_after=0xc0)
+        return []
+        # return self.__get_strings("fuiFontName", 0x40, padding_before=4, padding_after=0xc0)
 
     def get_symbols(self) -> list:
-        return self.__get_strings("fuiSymbol", 0x40, padding_after=8)
-
-    def get_timeline_events(self) -> list:
-        return self.__get_strings("fuiTimelineEventName", 0x40)
+        return self.__get_data_type_list("fuiSymbol", fuiSymbol)
 
     def get_timeline_frames(self) -> list:
-        return self.__get_strings("fuiTimelineFrame", 0x40, padding_after=8)
+        return self.__get_data_type_list("fuiTimelineFrame", fuiTimelineFrame)
 
     def get_timeline_actions(self) -> list:
-        return self.__get_strings("fuiTimelineAction", 0x80, padding_before=4)
+        return []
+        # return self.__get_strings("fuiTimelineAction", 0x80, padding_before=4)
 
     def get_references(self) -> list:
-        return self.__get_data_list("<i64si", "fuiReference")
-        # return self.__get_strings("fuiReference", 0x40, padding_before=4, padding_after=4)
+        return self.__get_data_type_list("fuiReference", fuiReference)
 
     def get_bitmaps(self) -> list:
-        return self.__get_data_list("<4x5I8x", "fuiBitmap")
+        return self.__get_data_type_list("fuiBitmap", fuiBitmap)
 
-    def get_symbol_data(self) -> list:
-        return self.__get_data_list("<64x2I", "fuiSymbol")
-
-    def get_shape_component_data(self) -> list:
-        return self.__get_data_list("<3I6f2I", "fuiShapeComponent")
-
-    def get_timeline_event_data(self) -> list:
-        return self.__get_data_list("<6h6f8fI", "fuiTimelineEvent")
+    def get_timeline_event(self) -> list:
+        return self.__get_data_type_list("fuiTimelineEvent", fuiTimelineEvent)
     
     def get_timeline_data(self) -> list:
-        return self.__get_data_list("<i4h4f", "fuiTimeline")
+        return self.__get_data_type_list("fuiTimeline", fuiTimeline)
 
-    def __dump_image(self, output_file:str, start:int, size:int) -> None:
-        png_header_magic = b'\x89PNG'
-        out_data = self.__get_raw_data(start, size)
-        ext:str = "png" if out_data[0:4] == png_header_magic else "jpeg"
-        print(f"Dumping: {output_file}.{ext}")
+    def get_vert(self) -> list:
+        return self.__get_data_type_list("fuiVert", fuiVert)
+
+    def __dump_image(self, output_file:str, start_offset:int, size:int) -> None:
+        png_header_magic = b'PNG'
+        out_data = self.__get_raw_data(start_offset, size)
+        ext:str = "png" if out_data[1:4] == png_header_magic else "jpeg"
+        print(f"Dumping to: {output_file}.{ext}")
         with open(f"{output_file}.{ext}", "wb") as out: out.write(out_data)
 
     #! TODO: fix dumping to work with assigned name(symbol)
@@ -122,19 +134,16 @@ class fuiParser:
         start:int = self.get_start_offset_of("fuiBitmap")
         image_start:int = start + size
 
-        bitmaps = self.get_bitmaps()
-        last_pos:list = []
+        symbol_names:list = []
         for pos in range(self.__HeaderDataInfo["fuiSymbol"].count):
             data = self.__get_raw_data_by_section_name("fuiSymbol", pos)
             symbol_type = int.from_bytes(data[0x40:0x44],"little")
-            if symbol_type == 3: last_pos.append(data[:0x40].decode('UTF-8').replace("\0", ""))
+            if symbol_type == 3: symbol_names.append(data[:0x40].decode('UTF-8').replace("\0", ""))
         bitmap_pos:int = 0
-        # print(last_pos)
-        for bitmap_type, w,h, size1, size2 in bitmaps:
+        for bitmap_type, w,h, size1, size2 in self.get_bitmaps():
             # if not bitmap_type == 3: continue
 
-            bitmap_name = last_pos[bitmap_pos]
-            # print(bitmap_name)
+            bitmap_name = symbol_names[bitmap_pos]
 
             fmt:str = "<8x2I4xI8x"
             if struct.calcsize(fmt) != element_size: raise Exception("Format doesnt match element size!")
@@ -149,16 +158,16 @@ class fuiParser:
 
     def get_start_offset_of(self, section_name:str) -> int:
         if section_name not in self.HeaderDataInfo.keys() or self.HeaderDataInfo[section_name].count == 0: return -1
-        offset:int = self.__header.HeaderSize
+        offset:int = self.__header.header_size
         for key, header_info in self.HeaderDataInfo.items():
             if key == section_name: return offset
             offset += header_info.section_size
         return -1
 
-    def get_sections_size(self) -> int:
+    def validate_content_size(self) -> bool:
         size:int = 0
-        for _,[_,_,s] in self.HeaderDataInfo.items(): size += s
-        return size
+        for _,hInfo in self.HeaderDataInfo.items(): size += hInfo.section_size
+        return size == self.header.content_size
 
     def __str__(self) -> str:
         res:str = self.__header.__str__() + "\n"

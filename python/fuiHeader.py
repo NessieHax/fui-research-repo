@@ -1,37 +1,28 @@
 import struct
-from enum import Enum
 
-from fuiRect import fuiRect
-
-def swapLE32(x , fmt:str):
-    return struct.unpack(fmt.replace(">", "<"), struct.pack(fmt,x))[0]
-
-class eFuiObjectType(Enum):
-    Stage = 0
-    Shape = 1
-    Timeline = 2
-    Bitmap = 3
-    EditText = 5
-    CodeGenRect = 6
+from fuiDataStructures.fuiRect import fuiRect
 
 class fuiHeader:
-    def __init__(self, rawHeader:bytes):
-        fmt = "<4s4xI64s15I4f"
-        data = struct.unpack(fmt, rawHeader)
-        self.identifier:str = data[0] #! loaded : "FUI\x01" file : "\x01IUF"
-        self.size:int = data[1] #! HeaderSize + size = whole file size
-        self.swfname:str = data[2].decode("UTF-8").replace("\x00","")
-        self.data_counts:list = [cluster_counter for cluster_counter in data[3:18]] #! count of data cluster(fuiTimeline/fuiBitmap/etc..)
-        self.rect:fuiRect = fuiRect(data[18], data[20], data[19], data[21])
-        self.HeaderSize:int = struct.calcsize(fmt)
+    fmt = "<4s4xI64s15i4f"
+    header_size:int = struct.calcsize(fmt)
+    def __init__(self, raw_data:bytes):
+        data = struct.unpack(self.fmt, raw_data)
+        self.version = data[0][0]
+        self.identifier:str = data[0][1:4] #! loaded : "FUI" | stored : "IUF"
+        self.content_size:int = data[1] #! header_size + content_size = whole file size
+        self.swf_name:str = data[2].decode("UTF-8").strip("\0")
+        self.data_counts:list = [cluster_counter for cluster_counter in data[3:18]]
+        self.rect:fuiRect = fuiRect(data[18], data[19], data[20], data[21])
 
     def __repr__(self):
         return f"""
+Version: {self.version}
 Identifier: {self.identifier}
-Content Size: {self.size}
-Header Size: {self.HeaderSize}
-Swf Name: {self.swfname}
-Frame: {self.rect}
+Content Size: {self.content_size}
+Header Size: {self.header_size}
+Swf Name: {self.swf_name}
+Stage: {self.rect}
+Stage Size: {self.rect.get_size()}
 
-Cluster Counts: {self.data_counts}
+Object Counts: {self.data_counts}
 """
