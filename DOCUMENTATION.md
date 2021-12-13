@@ -38,10 +38,10 @@ These structures are used in some Elements in an FUI file
 
 | Name | Offset | Byte Size | Type | Description |
 | :-:|:-:|:-:|:-:|:-:|
-| X (min X) | 0x0 | 4 | float | Minimun X position of the Rectangle
-| Width (max X) | 0x4 | 4 | float | Maximun X position of the Rectangle
-| Y (min Y) | 0x8 | 4 | float | Minimun Y position of the Rectangle
-| Height (max Y) | 0xc | 4 | float | Maximun Y position of the Rectangle
+| Min. X | 0x0 | 4 | float | Minimun X position
+| Max. X | 0x4 | 4 | float | Maximun X position
+| Min. Y | 0x8 | 4 | float | Minimun Y position
+| Max. Y | 0xc | 4 | float | Maximun Y position
 
 ## fuiRGBA
 
@@ -67,14 +67,14 @@ This Might also be [`Color transform with alpha record` (page 25)](https://www.a
 
 | Name | Offset | Byte Size | Type | Description |
 | :-:|:-:|:-:|:-:|:-:|
-| HasAddTerm | 0x0 | 4 | bool | 
-| HasMultTerm | 0x4 | 4 | bool | 
-| RedMultTerm | 0x8 | 4 | float | 
-| GrennMultTerm | 0xc | 4 | float | 
-| BlueMultTerm | 0x10 | 4 | float | 
-| RedAddTerm | 0x14 | 4 | float | 
-| GrennAddTerm | 0x18 | 4 | float | 
-| BlueAddTerm | 0x1c | 4 | float | 
+| RedMultTerm | 0x0 | 4 | float | 
+| GrennMultTerm | 0x4 | 4 | float | 
+| BlueMultTerm | 0x8 | 4 | float | 
+| AlphaMultTerm | 0xc | 4 | float | 
+| RedAddTerm | 0x10 | 4 | float | 
+| GrennAddTerm | 0x14 | 4 | float | 
+| BlueAddTerm | 0x18 | 4 | float | 
+| AlphaAddTerm | 0x1c | 4 | float | 
 
 ## fuiFillStyle
 This is Untested just referenced by the .swf file docs!!
