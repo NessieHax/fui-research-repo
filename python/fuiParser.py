@@ -1,5 +1,8 @@
-import struct
+import struct, os
 from dataclasses import dataclass, field
+from collections.abc import Callable
+
+import cv2, numpy 
 
 from fuiHeader import fuiHeader
 from fuiDataStructures.fuiImportAsset import fuiImportAsset
@@ -10,155 +13,169 @@ from fuiDataStructures.fuiReference import fuiReference
 from fuiDataStructures.fuiVert import fuiVert
 from fuiDataStructures.fuiTimelineEvent import fuiTimelineEvent
 from fuiDataStructures.fuiTimelineFrame import fuiTimelineFrame
+from fuiDataStructures.fuiTimelineEventName import fuiTimelineEventName
+from fuiDataStructures.fuiTimelineAction import fuiTimelineAction
+from fuiDataStructures.fuiShape import fuiShape
+from fuiDataStructures.fuiShapeComponent import fuiShapeComponent
 
 @dataclass
 class HeaderInfo:
     count:int = field(default_factory=int)
     element_size:int = field(default_factory=int)
     section_size:int = field(default_factory=int)
+    repr_cls:Callable[[],None] = field(repr=False,default_factory=Callable[[],None])
 
-def makeHeaderInfo(data:list , index:int, element_size:int) -> HeaderInfo:
-    return HeaderInfo(data[index], element_size, data[index]*element_size)
+def makeHeaderInfo(data:list , index:int, element_size:int, cls = None) -> HeaderInfo:
+    return HeaderInfo(data[index], element_size, data[index]*element_size, cls)
 
 class fuiParser:
     def __init__(self, raw_fui_file:bytes):
-        self.__header:fuiHeader = fuiHeader(raw_fui_file[0:0x98])
+        self.header:fuiHeader = fuiHeader(raw_fui_file[:0x98])
         self.__raw_data:bytearray = raw_fui_file
         self.__HeaderDataInfo:dict = {
-            "fuiTimeline"           : makeHeaderInfo(self.__header.data_counts, 0, 0x1c),  #! 0x4c | fuiObject.eFuiObjectType , 4 unkn short , fuiRect
-            "fuiTimelineAction"     : makeHeaderInfo(self.__header.data_counts, 2, 0x84),  #! 0x54 | unkn short , unnk short(swapped) , char unkn_buf[64](action??) , char unkn_buf[64](argv??) 
-            "fuiShape"              : makeHeaderInfo(self.__header.data_counts, 3, 0x1c),  #! 0x58 | 2 Intiger(need swap), fuiObject.eFuiObjectType , fuiRect
-            "fuiShapeComponent"     : makeHeaderInfo(self.__header.data_counts, 4, 0x2c),  #! 0x5c | fuiFillStyle , 2 Intiger(need swap)
-            "fuiVert"               : makeHeaderInfo(self.__header.data_counts, 5, 0x8),   #! 0x60 | fuiVert(float x, float y)
-            "fuiTimelineFrame"      : makeHeaderInfo(self.__header.data_counts, 6, 0x48),  #! 0x64 | char frame_name[64] , 2 Intiger(need swap)
-            "fuiTimelineEvent"      : makeHeaderInfo(self.__header.data_counts, 7, 0x48),  #! 0x68 | 4 unkn short , fuiMatrix , fuiColorTransform , fuiRGBA
-            "fuiTimelineEventName"  : makeHeaderInfo(self.__header.data_counts, 1, 0x40),  #! 0x50 | char Name[64]
-            "fuiReference"          : makeHeaderInfo(self.__header.data_counts, 8, 0x48),  #! 0x6c | fuiObject.eFuiObjectType , char ref_name[64] , unknown value(needs swap)
-            "fuiEdittext"           : makeHeaderInfo(self.__header.data_counts, 9, 0x138), #! 0x70 | unkn int , fuiRect , 1 unkn int, unkn float , fuiRGBA , fuiRect(maybe), 2 unkn int, char html_text_format[0x100 max!], 
-            "fuiFontName"           : makeHeaderInfo(self.__header.data_counts, 13, 0x104),#! 0x80 | unkn int , char font_name[64], unkn int , char [0x40], unkn int , char [0x40]
-            "fuiSymbol"             : makeHeaderInfo(self.__header.data_counts, 10, 0x48), #! 0x74 | char symbol_name[64] , fuiObject.eFuiObjectType , unkn int
-            "fuiImportAsset"        : makeHeaderInfo(self.__header.data_counts, 14, 0x40), #! 0x84 | char asset_name[64]
-            "fuiBitmap"             : makeHeaderInfo(self.__header.data_counts, 11, 0x20), #! 0x78 | fuiObject.eFuiObjectType , unkn int , width(int swapped) , height(int swapped) , unkn int , compressed_image_size(png/jpeg compression)
-            "images_size"           : makeHeaderInfo(self.__header.data_counts, 12, 0x1),  #! 0x7c | size of bytes at the end
+            "fuiTimeline"           : makeHeaderInfo(self.header.data_counts, 0, 0x1c, fuiTimeline),  #! 0x4c | fuiObject.eFuiObjectType , 4 unkn short , fuiRect
+            "fuiTimelineAction"     : makeHeaderInfo(self.header.data_counts, 2, 0x84, fuiTimelineAction),  #! 0x54 | unkn short , unnk short(swapped) , char unkn_buf[64](action??) , char unkn_buf[64](argv??) 
+            "fuiShape"              : makeHeaderInfo(self.header.data_counts, 3, 0x1c, fuiShape),  #! 0x58 | 2 Intiger(need swap), fuiObject.eFuiObjectType , fuiRect
+            "fuiShapeComponent"     : makeHeaderInfo(self.header.data_counts, 4, 0x2c, fuiShapeComponent),  #! 0x5c | fuiFillStyle , 2 Intiger(need swap)
+            "fuiVert"               : makeHeaderInfo(self.header.data_counts, 5, 0x8, fuiVert),   #! 0x60 | fuiVert(float x, float y)
+            "fuiTimelineFrame"      : makeHeaderInfo(self.header.data_counts, 6, 0x48, fuiTimelineFrame),  #! 0x64 | char frame_name[64] , 2 Intiger(need swap)
+            "fuiTimelineEvent"      : makeHeaderInfo(self.header.data_counts, 7, 0x48, fuiTimelineEvent),  #! 0x68 | 4 unkn short , fuiMatrix , fuiColorTransform , fuiRGBA
+            "fuiTimelineEventName"  : makeHeaderInfo(self.header.data_counts, 1, 0x40, fuiTimelineEventName),  #! 0x50 | char Name[64]
+            "fuiReference"          : makeHeaderInfo(self.header.data_counts, 8, 0x48, fuiReference),  #! 0x6c | fuiObject.eFuiObjectType , char ref_name[64] , unknown value(needs swap)
+            "fuiEdittext"           : makeHeaderInfo(self.header.data_counts, 9, 0x138), #! 0x70 | unkn int , fuiRect , 1 unkn int, unkn float , fuiRGBA , fuiRect(maybe), 2 unkn int, char html_text_format[0x100 max!], 
+            "fuiFontName"           : makeHeaderInfo(self.header.data_counts, 13, 0x104),#! 0x80 | unkn int , char font_name[64], unkn int , char [0x40], unkn int , char [0x40]
+            "fuiSymbol"             : makeHeaderInfo(self.header.data_counts, 10, 0x48, fuiSymbol), #! 0x74 | char symbol_name[64] , fuiObject.eFuiObjectType , unkn int
+            "fuiImportAsset"        : makeHeaderInfo(self.header.data_counts, 14, 0x40, fuiImportAsset), #! 0x84 | char asset_name[64]
+            "fuiBitmap"             : makeHeaderInfo(self.header.data_counts, 11, 0x20, fuiBitmap), #! 0x78 | fuiObject.eFuiObjectType , unkn int , width(int swapped) , height(int swapped) , unkn int , compressed_image_size(png/jpeg compression)
+            "images_size"           : makeHeaderInfo(self.header.data_counts, 12, 0x1),  #! 0x7c | size of bytes at the end
+        }
+        #! dictionary containing dataclasses to represent objects in a fui file
+        self.__parsed_objects:dict = {
+            "fuiTimeline" : [],
+            "fuiTimelineAction" : [],
+            "fuiShape" : [],
+            "fuiShapeComponent" : [],
+            "fuiVert" : [],
+            "fuiTimelineFrame" : [],
+            "fuiTimelineEvent" : [],
+            "fuiTimelineEventName" : [],
+            "fuiReference" : [],
+            "fuiEdittext" : [],
+            "fuiFontName" : [],
+            "fuiSymbol" : [],
+            "fuiImportAsset" : [],
+            "fuiBitmap" : [],
+            "images_size" : 0
         }
 
     @property
     def HeaderDataInfo(self) -> dict:
         return self.__HeaderDataInfo
 
-    @property
-    def header(self) -> fuiHeader:
-        return self.__header
-
     def validate_class_size(self, section_name:str, cls) -> bool:
         """ Returns `true` if the fmt property of a class equals the data type element size """
-        return struct.calcsize(cls.fmt) == self.HeaderDataInfo[section_name].element_size
+        return self.HeaderDataInfo[section_name].element_size == struct.calcsize(cls.fmt)
 
     def is_valid_index(self, section_name:str, index:int) -> bool:
         return index < self.HeaderDataInfo[section_name].count and index > -1
 
-    #! sets up Object lists for rebuilding
+    #! sets up Object lists
     def parse(self) -> None:
-        pass
+        [self.__parse(key, self.__parsed_objects[key]) for key,data in self.HeaderDataInfo.items() if data.repr_cls is not None]
+        self.__parsed_objects["images_size"] = self.HeaderDataInfo["images_size"].section_size
 
-    #! used to rebuild fui file structure
+    def __parse(self, section_name:str, container:list) -> list:
+        cls = self.HeaderDataInfo[section_name].repr_cls
+        if not self.validate_class_size(section_name, cls): raise Exception("Class does not contain the required size!")
+        for i in range(self.HeaderDataInfo[section_name].count):
+            offset = self.__get_indexed_offset(section_name, i)
+            data_size = self.HeaderDataInfo[section_name].element_size
+            container.append(cls(self.__get_raw_data(offset, data_size)))
+        return container
+
     def rebuild(self) -> None:
         pass
 
-    def __get_data_format(self, data_format:str, offset:int) -> tuple:
-        size:int = struct.calcsize(data_format)
-        return struct.unpack(data_format, self.__get_raw_data(offset, size))
+    def clean(self, path:str) -> None:
+        os.remove(path)
     
     def __get_raw_data(self, offset:int, size:int) -> bytearray:
         return self.__raw_data[offset:offset+size]
-
-    def __get_data_type(self, section_name:str, cls, index:int = 0):
-        x = self.__get_raw_data(self.__get_indexed_offset(section_name,index), self.HeaderDataInfo[section_name].element_size)
-        return cls(x)
-
-    def __get_data_type_list(self, section_name:str, cls) -> list:
-        return [self.__get_data_type(section_name, cls, i) for i in range(self.__HeaderDataInfo[section_name].count)]
 
     def __get_indexed_offset(self, section_name:str, index:int = 0) -> int:
         if not self.is_valid_index(section_name, index): raise Exception("Index out of range")
         return self.get_start_offset_of(section_name) + index * self.__HeaderDataInfo[section_name].element_size if index < self.__HeaderDataInfo[section_name].count else -1
 
-    def __get_raw_data_by_section_name(self, section_name:str, index:int = 0) -> bytearray:
-        offset:int = self.__get_indexed_offset(section_name, index)
-        return self.__get_raw_data(offset, self.HeaderDataInfo[section_name].element_size)
-
     def get_imported_assets(self) -> list:
-        return self.__get_data_type_list("fuiImportAsset", fuiImportAsset)
+        return self.__parsed_objects["fuiImportAsset"]
 
     def get_fonts(self) -> list:
-        return []
-        # return self.__get_strings("fuiFontName", 0x40, padding_before=4, padding_after=0xc0)
+        return self.__parsed_objects["fuiFontName"]
 
     def get_symbols(self) -> list:
-        return self.__get_data_type_list("fuiSymbol", fuiSymbol)
+        return self.__parsed_objects["fuiSymbol"]
 
     def get_timeline_frames(self) -> list:
-        return self.__get_data_type_list("fuiTimelineFrame", fuiTimelineFrame)
+        return self.__parsed_objects["fuiTimelineFrame"]
 
     def get_timeline_actions(self) -> list:
-        return []
-        # return self.__get_strings("fuiTimelineAction", 0x80, padding_before=4)
+        return self.__parsed_objects["fuiTimelineAction"]
 
     def get_references(self) -> list:
-        return self.__get_data_type_list("fuiReference", fuiReference)
+        return self.__parsed_objects["fuiReference"]
 
     def get_bitmaps(self) -> list:
-        return self.__get_data_type_list("fuiBitmap", fuiBitmap)
+        return self.__parsed_objects["fuiBitmap"]
 
     def get_timeline_event(self) -> list:
-        return self.__get_data_type_list("fuiTimelineEvent", fuiTimelineEvent)
+        return self.__parsed_objects["fuiTimelineEvent"]
     
-    def get_timeline_data(self) -> list:
-        return self.__get_data_type_list("fuiTimeline", fuiTimeline)
+    def get_timelines(self) -> list:
+        return self.__parsed_objects["fuiTimeline"]
 
     def get_vert(self) -> list:
-        return self.__get_data_type_list("fuiVert", fuiVert)
+        return self.__parsed_objects["fuiVert"]
+
+    def get_shapes(self) -> list:
+        return self.__parsed_objects["fuiShape"]
+
+    def get_shape_components(self) -> list:
+        return self.__parsed_objects["fuiShapeComponent"]
 
     def __dump_image(self, output_file:str, start_offset:int, size:int) -> None:
         png_header_magic = b'PNG'
         out_data = self.__get_raw_data(start_offset, size)
         ext:str = "png" if out_data[1:4] == png_header_magic else "jpeg"
-        print(f"Dumping to: {output_file}.{ext}")
-        with open(f"{output_file}.{ext}", "wb") as out: out.write(out_data)
+        filename = f"{output_file}.{ext}"
+        if ext == "png": 
+            data = numpy.asarray(bytearray(out_data), dtype=numpy.uint8)
+            img = cv2.imdecode(data, cv2.IMREAD_ANYCOLOR | cv2.IMREAD_UNCHANGED)
+            image_rgb = cv2.cvtColor(img, cv2.COLOR_BGRA2RGBA)
+            cv2.imwrite(filename, image_rgb, [cv2.IMWRITE_PNG_COMPRESSION])
+            return
+        with open(filename, "wb") as out: out.write(out_data)
 
-    #! TODO: fix dumping to work with assigned name(symbol)
     def get_images(self, output_path:str) -> None:
-        return
         header_info = self.HeaderDataInfo["fuiBitmap"]
-        count, element_size, size  = header_info.count, header_info.element_size, header_info.section_size
         start:int = self.get_start_offset_of("fuiBitmap")
-        image_start:int = start + size
+        bitmaps = self.get_bitmaps()
 
-        symbol_names:list = []
-        for pos in range(self.__HeaderDataInfo["fuiSymbol"].count):
-            data = self.__get_raw_data_by_section_name("fuiSymbol", pos)
-            symbol_type = int.from_bytes(data[0x40:0x44],"little")
-            if symbol_type == 3: symbol_names.append(data[:0x40].decode('UTF-8').replace("\0", ""))
-        bitmap_pos:int = 0
-        for bitmap_type, w,h, size1, size2 in self.get_bitmaps():
-            # if not bitmap_type == 3: continue
+        output_path = f"{output_path}/{self.header.swf_name.replace('.swf','')}"
+        try: os.makedirs(output_path)
+        #! clears out directory if already exists
+        except OSError: 
+            for root, _, files in os.walk(output_path):
+                [os.remove(os.path.join(root, file)) for file in files]
 
-            bitmap_name = symbol_names[bitmap_pos]
-
-            fmt:str = "<8x2I4xI8x"
-            if struct.calcsize(fmt) != element_size: raise Exception("Format doesnt match element size!")
-            pos:int = start + bitmap_pos * element_size
-            buffer = self.__get_data_format(fmt, pos)
-            # print(f"{buffer[0]}x{buffer[1]}") #! scale Width and hight used in game
-            image_size = buffer[2]
-            self.__dump_image(f"{output_path}/{bitmap_name}", image_start, image_size)
-            bitmap_pos += 1
-            image_start += image_size
-        print(f"Dumped {bitmap_pos} images")
+        for sym_data in self.get_symbols():
+            if sym_data.obj_type != 3: continue #! continue if not of type bitmap
+            bitmap_data = bitmaps[sym_data.unk_val]
+            image_start:int = start + header_info.section_size + bitmap_data.offset
+            self.__dump_image(f"{output_path}/{sym_data.name}", image_start, bitmap_data.size)
 
     def get_start_offset_of(self, section_name:str) -> int:
         if section_name not in self.HeaderDataInfo.keys() or self.HeaderDataInfo[section_name].count == 0: return -1
-        offset:int = self.__header.header_size
+        offset:int = self.header.header_size
         for key, header_info in self.HeaderDataInfo.items():
             if key == section_name: return offset
             offset += header_info.section_size
@@ -170,6 +187,6 @@ class fuiParser:
         return size == self.header.content_size
 
     def __str__(self) -> str:
-        res:str = self.__header.__str__() + "\n"
+        res:str = self.header.__str__() + "\n"
         for key, val in self.HeaderDataInfo.items(): res += f"{key} -> {val}\n\n"
         return  res
