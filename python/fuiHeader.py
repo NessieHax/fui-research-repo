@@ -11,7 +11,7 @@ class fuiHeader:
         self.identifier:str = data[0][1:4] #! loaded : "FUI" | stored : "IUF"
         self.content_size:int = data[1] #! header_size + content_size = whole file size
         self.swf_name:str = data[2].decode("UTF-8").strip("\0")
-        self.data_counts:list = [cluster_counter for cluster_counter in data[3:18]]
+        self.data_counts:list = [count for count in data[3:18]]
         self.rect:fuiRect = fuiRect(data[18], data[19], data[20], data[21])
 
     def __repr__(self):
