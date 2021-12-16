@@ -1,35 +1,34 @@
-import struct
 import sys, os
 
 from fuiParser import fuiParser
-from fuiDataStructures.fuiImportAsset import fuiImportAsset
 
 argc = len(sys.argv)
 
 def main():
     with open(sys.argv[1],"rb") as fui:
         parser = fuiParser(fui.read())
-        # print(parser)
+        parser.parse() #! needs to be called before you're able to access data via the getter
+        # print(parser.header)
 
         # print(f"Imported Assets: {parser.get_imported_assets()}\n")
-        # print(f"Symbol Names: {parser.get_symbols()}\n")    
+        # print(f"Symbol Names: {parser.get_symbols()}\n")
+        # print([x for x in parser.get_symbols() if x.obj_type != 3])
+        # print(f"Bitmaps: {parser.get_bitmaps()}\n")
+        # print(f"Shapes: {parser.get_shapes()}\n")
+        # print(f"Shape Components: {parser.get_shape_components()}\n")
+        # print("Shape count:", len(parser.get_shapes()))
+        # print("Shape Component count:", parser.HeaderDataInfo["fuiShapeComponent"].count)
         # print(f"Timeline Event Names: {parser.get_timeline_event()}\n")
-        # print(f"Timeline : {parser.get_timeline_data()}\n")
+        # print(f"Timeline : {parser.get_timelines()}\n")
         # print(f"Timeline Frame Names: {parser.get_timeline_frames()}\n")
         # print(f"Timeline Actions: {parser.get_timeline_actions()}\n")
         # print(f"Reference Names: {parser.get_references()}\n")
         # print(f"Font Names: {parser.get_fonts()}\n")
-        print(f"Vert : {parser.get_vert()}\n")
+        # print(f"Vert : {parser.get_vert()}\n")
         # print(parser.validate_content_size())
 
-        # output_path = "output"
-        # try: os.makedirs(output_path)
-        # #! clears out directory if already exists
-        # except OSError: 
-        #     for root, dirs, files in os.walk(output_path):
-        #         for file in files:
-        #             os.remove(os.path.join(root, file))
-        # parser.get_images(f"{os.getcwd()}/output")
+        output_path = "output"
+        parser.get_images(f"{os.getcwd()}/{output_path}")
 
 def usage() -> None:
     print(f"\n\tUsage: {__file__[len(os.getcwd()):]} <(fui file)>\n")
