@@ -3,6 +3,8 @@ import struct
 
 @dataclass(init=False)
 class fuiTimelineFrame:
+    fmt = "<64s2i"
+
     frame_name:str = field(default_factory=str)
     unkn_0x40:int = field(default_factory=int)
     unkn_0x44:int = field(default_factory=int)
@@ -12,7 +14,3 @@ class fuiTimelineFrame:
         self.frame_name = data[0].decode('UTF-8').strip("\0")
         self.unkn_0x40 = data[1]
         self.unkn_0x44 = data[2]
-
-    @property
-    def fmt(self) -> str:
-        return "<64s2i"

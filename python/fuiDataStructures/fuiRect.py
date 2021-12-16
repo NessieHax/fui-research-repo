@@ -22,3 +22,6 @@ class fuiRect:
 
     def __str__(self):  
         return self.__rect.__str__()
+
+    def __repr__(self) -> str:
+        return self.__rect.__repr__()

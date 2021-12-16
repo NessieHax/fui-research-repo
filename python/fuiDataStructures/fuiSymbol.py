@@ -4,6 +4,8 @@ import struct
 
 @dataclass(init=False)
 class fuiSymbol:
+    fmt = "<64s2i"
+
     name:str = field(default_factory=str)
     obj_type:int = field(default_factory=int)
     unk_val:int = field(default_factory=int)
@@ -30,9 +32,6 @@ class fuiSymbol:
         self.obj_type = data[1]
         self.unk_val = data[2]
 
-    @property
-    def fmt(self) -> str:
-        return "<64s2i"
 
     def get_name(self) -> str:
         return self.name

@@ -7,6 +7,8 @@ from fuiDataStructures.fuiColorTransform import fuiColorTransform
 
 @dataclass(init=False)
 class fuiTimelineEvent:
+    fmt = "<6h6f8fI"
+
     unkn_0x0:int = field(default_factory=int)
     unkn_0x2:int = field(default_factory=int)
     unkn_0x4:int = field(default_factory=int)
@@ -28,7 +30,3 @@ class fuiTimelineEvent:
         self.matrix = fuiMatrix(data[6], data[7], data[8], data[9], data[10], data[11])
         self.ColorTransform = fuiColorTransform(data[12], data[13], data[14], data[15], data[16], data[17], data[18], data[19])
         self.color = data[20]
-
-    @property
-    def fmt(self) -> str:
-        return "<6h6f8fI"
