@@ -14,4 +14,5 @@ Reference used can be found [here](https://www.adobe.com/content/dam/acom/en/dev
 ## Examples
 
 Python 3 Examples can be found [here](./python/example.py).\
-(developed and tested only on Python 3.10, might work with lower Python 3 versions)
+(developed and tested only on Python 3.10, might work with lower Python 3 versions).\
+**Note**: the current example is only for the command line.
