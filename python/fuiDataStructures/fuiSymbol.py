@@ -8,7 +8,7 @@ class fuiSymbol:
 
     name:str = field(default_factory=str)
     obj_type:int = field(default_factory=int)
-    unk_val:int = field(default_factory=int)
+    unk_val:int = field(default_factory=int) #! TODO: find a proper name | DESC.: used to map symbol to specific type list
     @overload
     def __init__(self, sym_name:str, Obj_type:int, unkn_val:int): ...
     @overload

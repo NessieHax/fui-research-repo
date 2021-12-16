@@ -1,6 +1,7 @@
 
 
 class fuiMatrix:
+    fmt = "<6f"
 
     def __init__(self, scale_x:float, scale_y:float, rotate_skew0:float, rotate_skew1:float, translae_x:float, translae_y:float):
         self.matrix:dict = {
@@ -14,4 +15,6 @@ class fuiMatrix:
 
     def __str__(self) -> str:
         return self.matrix.__str__()
-        
+
+    def __repr__(self) -> str:
+        return self.matrix.__repr__()
