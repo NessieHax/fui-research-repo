@@ -79,6 +79,17 @@ class fuiParser:
     def is_valid_index(self, section_name:str, index:int) -> bool:
         return index < self.HeaderDataInfo[section_name].count and index > -1
 
+    def validate_content_size(self) -> bool:
+        size:int = 0
+        for _,hInfo in self.HeaderDataInfo.items(): size += hInfo.section_size
+        return size == self.header.content_size
+
+    def validate_folder_dest(self, output_path:str) -> None:
+        try: os.makedirs(output_path)
+        #! clear out directory if already exists
+        except OSError: 
+            self.clean(output_path)
+
     #! sets up Object lists
     def parse(self) -> None:
         [self.__parse(key, self.__parsed_objects[key]) for key,data in self.HeaderDataInfo.items() if data.repr_cls is not None]
@@ -96,8 +107,10 @@ class fuiParser:
     def rebuild(self) -> None:
         pass
 
+    #! TODO: make this robust | folder deletion
     def clean(self, path:str) -> None:
-        os.remove(path)
+        for root, _, files in os.walk(path):
+            [os.remove(os.path.join(root, file)) for file in files]
     
     def __get_raw_data(self, offset:int, size:int) -> bytearray:
         return self.__raw_data[offset:offset+size]
@@ -127,8 +140,11 @@ class fuiParser:
     def get_bitmaps(self) -> list:
         return self.__parsed_objects["fuiBitmap"]
 
-    def get_timeline_event(self) -> list:
+    def get_timeline_events(self) -> list:
         return self.__parsed_objects["fuiTimelineEvent"]
+
+    def get_timeline_event_names(self) -> list:
+        return self.__parsed_objects["fuiTimelineEventName"]
     
     def get_timelines(self) -> list:
         return self.__parsed_objects["fuiTimeline"]
@@ -147,31 +163,49 @@ class fuiParser:
         out_data = self.__get_raw_data(start_offset, size)
         ext:str = "png" if out_data[1:4] == png_header_magic else "jpeg"
         filename = f"{output_file}.{ext}"
+        # print("Dumping:",filename)
         if ext == "png": 
             data = numpy.asarray(bytearray(out_data), dtype=numpy.uint8)
-            img = cv2.imdecode(data, cv2.IMREAD_ANYCOLOR | cv2.IMREAD_UNCHANGED)
+            img = cv2.imdecode(data, cv2.IMREAD_COLOR | cv2.IMREAD_UNCHANGED)
             image_rgb = cv2.cvtColor(img, cv2.COLOR_BGRA2RGBA)
             cv2.imwrite(filename, image_rgb, [cv2.IMWRITE_PNG_COMPRESSION])
             return
         with open(filename, "wb") as out: out.write(out_data)
 
-    def get_images(self, output_path:str) -> None:
+    #! Dumps to output_path/fui_file_name/
+    def dump_images(self, output_path:str) -> None:
         header_info = self.HeaderDataInfo["fuiBitmap"]
         start:int = self.get_start_offset_of("fuiBitmap")
+        image_data_start:int = start + header_info.section_size
         bitmaps = self.get_bitmaps()
+        if len(bitmaps) == 0:
+            print("This fui file does not contain any images")
+            return
 
         output_path = f"{output_path}/{self.header.swf_name.replace('.swf','')}"
-        try: os.makedirs(output_path)
-        #! clears out directory if already exists
-        except OSError: 
-            for root, _, files in os.walk(output_path):
-                [os.remove(os.path.join(root, file)) for file in files]
+        self.validate_folder_dest(output_path)
 
-        for sym_data in self.get_symbols():
-            if sym_data.obj_type != 3: continue #! continue if not of type bitmap
-            bitmap_data = bitmaps[sym_data.unk_val]
-            image_start:int = start + header_info.section_size + bitmap_data.offset
-            self.__dump_image(f"{output_path}/{sym_data.name}", image_start, bitmap_data.size)
+        # image_count = 0
+        for symbol in self.get_symbols():
+            if symbol.obj_type == 3: 
+                # image_count += 1
+                bitmap_data = bitmaps[symbol.index]
+                # print(f"{symbol.name}({symbol.index}):\n\t{bitmap_data}")
+                image_start:int = image_data_start + bitmap_data.offset
+                self.__dump_image(f"{output_path}/{symbol.name}", image_start, bitmap_data.size)
+
+        # print("Dumped:",image_count)
+        # print("Contained:",len(self.get_bitmaps()))
+
+    def dump_raw(self, output_path:str) -> None:
+        output_path = f"{output_path}/{self.header.swf_name.replace('.swf','')}"
+        self.validate_folder_dest(output_path)
+        header_info = self.HeaderDataInfo["fuiBitmap"]
+        start:int = self.get_start_offset_of("fuiBitmap")
+        image_data_start:int = start + header_info.section_size
+        for i,bitmap in enumerate(self.get_bitmaps()):
+            image_start:int = image_data_start + bitmap.offset
+            self.__dump_image(f"{output_path}/image_{i}", image_start, bitmap.size)
 
     def get_start_offset_of(self, section_name:str) -> int:
         if section_name not in self.HeaderDataInfo.keys() or self.HeaderDataInfo[section_name].count == 0: return -1
@@ -181,12 +215,15 @@ class fuiParser:
             offset += header_info.section_size
         return -1
 
-    def validate_content_size(self) -> bool:
-        size:int = 0
-        for _,hInfo in self.HeaderDataInfo.items(): size += hInfo.section_size
-        return size == self.header.content_size
+    def get_image_by_name(self, name:str) -> fuiBitmap:
+        for symbol in self.get_symbols():
+            if symbol.obj_type != 3: continue
+            if symbol.name == name:
+                print(self.__get_indexed_offset("fuiBitmap",symbol.index))
+                return self.get_bitmaps()[symbol.index]
+        raise Exception(f"Could not find image named '{name}'")
 
     def __str__(self) -> str:
-        res:str = self.header.__str__() + "\n"
+        res:str = ""
         for key, val in self.HeaderDataInfo.items(): res += f"{key} -> {val}\n\n"
         return  res
