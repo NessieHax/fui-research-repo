@@ -2,6 +2,8 @@
 ## Base Information
 FUI Files are Mojangs/4J's way of storing Game UI Assets.
 
+*FUI files use the LSB(Little Endian) byte order.*
+
 The following Table gives you Important information about each structure that can be represented in a FUI file:
 | Name | Size (per element) | Description |
 | :-:|:-:|:-:|
@@ -19,20 +21,18 @@ The following Table gives you Important information about each structure that ca
 | fuiFontName | 0x104 | 
 | fuiSymbol | 0x48 | Defined Symbols with Name and Object type
 | fuiImportAsset | 0x40 | Assests Imports form other .swf/.fui files
-| fuiBitmap | 0x20 | Base Information about an Image/Shape contained in the file
-
-Most data in a FUI structure uses the LSB(Little Endian) byte order.
+| fuiBitmap | 0x20 | Information about an Image contained in the file
 
 ### Used structures in an FUI element
 These structures are used in some Elements in an FUI file
 | Name | Byte Size | Description |
 | :-:|:-:|:-:|
 | fuiRect | 0x10 | A Representation of a Rectangle
-| fuiRGBA | 0x4 | Base Color format used in FUI
+| fuiRGBA | 0x4 | Base Color format used in FUI files
 | fuiMatrix | 0x18 | 
 | fuiColorTransform | 0x20 | 
 | fuiFillStyle | 0x24 | Contains Information for filling 
-| fuiObject.eFuiObjectType | 0x4 | Describes the Type of some Elements
+| fuiObject.eFuiObjectType | 0x4 | Describes the Type of an Element
 
 ## fuiRect
 
@@ -47,10 +47,9 @@ These structures are used in some Elements in an FUI file
 
 | Name | Offset | Byte Size | Type | Description |
 | :-:|:-:|:-:|:-:|:-:|
-| Color | 0x0 | 4 | int | Hex Color in RGBA byte order
+| Color | 0x0 | 4 | int | 8-bit Color in RGBA byte order
 
 ## fuiMatrix
-This is Untested just referenced by the .swf file docs!!
 
 | Name | Offset | Byte Size | Type | Description |
 | :-:|:-:|:-:|:-:|:-:|
@@ -63,7 +62,6 @@ This is Untested just referenced by the .swf file docs!!
 
 ## fuiColorTransform
 This is Untested just referenced by the .swf file docs!!\
-This Might also be [`Color transform with alpha record` (page 25)](https://www.adobe.com/content/dam/acom/en/devnet/pdf/swf-file-format-spec.pdf).
 
 | Name | Offset | Byte Size | Type | Description |
 | :-:|:-:|:-:|:-:|:-:|
@@ -88,8 +86,6 @@ This is Untested just referenced by the .swf file docs!!
 
 
 ## FUI Header
-The Table below describes all members of the FUI Header:
-
 | Name | Offset | Byte Size | Type | Description |
 | :-:|:-:|:-:|:-:|:-:|
 | Identifier | 0x0 | 4 | char[] | FUI Header Magic (b'\x01IUF') first value (\x01) indecates the version of the fui file
@@ -99,7 +95,7 @@ The Table below describes all members of the FUI Header:
 | fuiTimeline Count | 0x4c | 4 | int | Count of fuiTimeline Elements in a file
 | fuiTimelineEventName Count | 0x50 | 4 | int | Count of fuiTimelineEventName Elements in a file
 | fuiTimelineAction Count | 0x54 | 4 | int | Count of fuiTimelineAction Elements in a file
-| fuiShape  Count | 0x58 | 4 | int | Count of fuiShape Elements in a file
+| fuiShape Count | 0x58 | 4 | int | Count of fuiShape Elements in a file
 | fuiShapeComponent Count | 0x5c | 4 | int | Count of fuiShapeComponent Elements in a file
 | fuiVert Count | 0x60 | 4 | int | Count of fuiVert Elements in a file
 | fuiTimelineFrame Count | 0x64 | 4 | int | Count of fuiTimelineFrame Elements in a file
@@ -117,7 +113,7 @@ The Table below describes all members of the FUI Header:
 Timeline member:
 | Name | Offset | Byte Size | Type | Description |
 | :-:|:-:|:-:|:-:|:-:|
-| Object Type | 0x0 | 4 | int | Type 2(fuiTimeline) of fuiObject.eFuiObjectType
+| Unknown | 0x0 | 4 | int | 
 | Unknown | 0x4 | 8 | short | 4 unknown short values
 | Rectangle | 0xc | 0x10 | fuiRect | Unknown fuiRect
 
@@ -218,7 +214,7 @@ TODO: get proper names and types!
 | :-:|:-:|:-:|:-:|:-:|
 | Symbol Name | 0x0 | 0x40 | char[] | Name of the Symbol
 | Object Type | 0x40 | 4 | int | 
-| Unknown | 0x44 | 4 | int | 
+| Index | 0x44 | 4 | int | Index mapped to the object type list
 
 ## fuiImportAsset
 
@@ -228,13 +224,15 @@ TODO: get proper names and types!
 
 ## fuiBitmap
 
+**Important: png file use bgra instead of rgba!**
+
 | Name | Offset | Byte Size | Type | Description |
 | :-:|:-:|:-:|:-:|:-:|
 | Unknown | 0x0 | 4 | int | Could be a kind of id
 | Object Type | 0x4 | 4 | int | Type of the bitmap (1 = Shape, 3 = Bitmap) (not tested!)
-| Scale Width | 0x8 | 4 | int | Width value to scale the given bitmap/Image data
-| Scale Height | 0xc | 4 | int | Height value to scale the given bitmap/Image data
-| Size 1 | 0x10 | 4 | int | Mostly used to identify compressed image size
-| Size 2 | 0x14 | 4 | int | 
+| Scale Width | 0x8 | 4 | int | Width value to scale the given Image
+| Scale Height | 0xc | 4 | int | Height value to scale the given Image
+| Offset | 0x10 | 4 | int | Offset of the Start
+| Size | 0x14 | 4 | int | Size of the image
 | Unknown | 0x18 | 4 | int | 
 | Unknown | 0x1c | 4 | int | 
