@@ -15,9 +15,9 @@ class fuiTimelineEvent:
     unkn_0x6:int = field(default_factory=int)
     unkn_0x8:int = field(default_factory=int)
     unkn_0xa:int = field(default_factory=int)
-    matrix:fuiMatrix = field(repr=False)
-    ColorTransform:fuiColorTransform = field(repr=False)
-    color:int = field(default_factory=int)
+    matrix:fuiMatrix = field(default_factory=fuiMatrix,repr=False)
+    ColorTransform:fuiColorTransform = field(default_factory=fuiColorTransform,repr=False)
+    color:int = field(default_factory=int,repr=False)
 
     def __init__(self, raw_bytes:bytes):
         data = struct.unpack(self.fmt, raw_bytes)
