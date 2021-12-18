@@ -12,3 +12,6 @@ class fuiColorTransform:
 
     def __str__(self) -> str:
         return self.transform.__str__()
+
+    def __repr__(self) -> str:
+        return self.transform.__repr__()
