@@ -2,7 +2,7 @@ import struct, os
 from dataclasses import dataclass, field
 from collections.abc import Callable
 
-import cv2, numpy 
+import cv2, numpy, zlib
 
 from fuiHeader import fuiHeader
 from fuiDataStructures.fuiImportAsset import fuiImportAsset
@@ -17,6 +17,7 @@ from fuiDataStructures.fuiTimelineEventName import fuiTimelineEventName
 from fuiDataStructures.fuiTimelineAction import fuiTimelineAction
 from fuiDataStructures.fuiShape import fuiShape
 from fuiDataStructures.fuiShapeComponent import fuiShapeComponent
+from fuiDataStructures.fuiEdittext import fuiEdittext
 
 @dataclass
 class HeaderInfo:
@@ -42,7 +43,7 @@ class fuiParser:
             "fuiTimelineEvent"      : makeHeaderInfo(self.header.data_counts, 7, 0x48, fuiTimelineEvent),  #! 0x68 | 4 unkn short , fuiMatrix , fuiColorTransform , fuiRGBA
             "fuiTimelineEventName"  : makeHeaderInfo(self.header.data_counts, 1, 0x40, fuiTimelineEventName),  #! 0x50 | char Name[64]
             "fuiReference"          : makeHeaderInfo(self.header.data_counts, 8, 0x48, fuiReference),  #! 0x6c | fuiObject.eFuiObjectType , char ref_name[64] , unknown value(needs swap)
-            "fuiEdittext"           : makeHeaderInfo(self.header.data_counts, 9, 0x138), #! 0x70 | unkn int , fuiRect , 1 unkn int, unkn float , fuiRGBA , fuiRect(maybe), 2 unkn int, char html_text_format[0x100 max!], 
+            "fuiEdittext"           : makeHeaderInfo(self.header.data_counts, 9, 0x138, fuiEdittext), #! 0x70 | unkn int , fuiRect , 1 unkn int, unkn float , fuiRGBA , fuiRect(maybe), 2 unkn int, char html_text_format[0x100 max!], 
             "fuiFontName"           : makeHeaderInfo(self.header.data_counts, 13, 0x104),#! 0x80 | unkn int , char font_name[64], unkn int , char [0x40], unkn int , char [0x40]
             "fuiSymbol"             : makeHeaderInfo(self.header.data_counts, 10, 0x48, fuiSymbol), #! 0x74 | char symbol_name[64] , fuiObject.eFuiObjectType , unkn int
             "fuiImportAsset"        : makeHeaderInfo(self.header.data_counts, 14, 0x40, fuiImportAsset), #! 0x84 | char asset_name[64]
@@ -77,7 +78,7 @@ class fuiParser:
         return self.HeaderDataInfo[section_name].element_size == struct.calcsize(cls.fmt)
 
     def is_valid_index(self, section_name:str, index:int) -> bool:
-        return index < self.HeaderDataInfo[section_name].count and index > -1
+        return -1 < index < self.HeaderDataInfo[section_name].count
 
     def validate_content_size(self) -> bool:
         size:int = 0
@@ -158,54 +159,60 @@ class fuiParser:
     def get_shape_components(self) -> list:
         return self.__parsed_objects["fuiShapeComponent"]
 
-    def __dump_image(self, output_file:str, start_offset:int, size:int) -> None:
+    def get_edittext(self) -> list:
+        return self.__parsed_objects["fuiEdittext"]
+
+    def __decode_image(self, raw_data:bytes | bytearray, read_flags:int = cv2.IMREAD_COLOR | cv2.IMREAD_UNCHANGED) -> None:
+        data = numpy.asarray(bytearray(raw_data), dtype=numpy.uint8)
+        return cv2.imdecode(data, read_flags)
+
+    def __dump_image(self, output_file:str, offset:int, size:int) -> None:
         png_header_magic = b'PNG'
-        out_data = self.__get_raw_data(start_offset, size)
+        out_data = self.__get_raw_data(offset, size)
         ext:str = "png" if out_data[1:4] == png_header_magic else "jpeg"
         filename = f"{output_file}.{ext}"
-        # print("Dumping:",filename)
-        if ext == "png": 
-            data = numpy.asarray(bytearray(out_data), dtype=numpy.uint8)
-            img = cv2.imdecode(data, cv2.IMREAD_COLOR | cv2.IMREAD_UNCHANGED)
-            image_rgb = cv2.cvtColor(img, cv2.COLOR_BGRA2RGBA)
-            cv2.imwrite(filename, image_rgb, [cv2.IMWRITE_PNG_COMPRESSION])
-            return
-        with open(filename, "wb") as out: out.write(out_data)
+        print("Dumping:", filename[len(os.getcwd()):])
+        img = self.__decode_image(out_data)
+        # print(img, filename[len(os.getcwd()):]) #! raw pixel RGBA byte order
+        write_flags = [cv2.IMWRITE_PNG_COMPRESSION] if ext == "png" else [cv2.IMWRITE_JPEG_QUALITY]
+        final_image = cv2.cvtColor(img, cv2.COLOR_BGRA2RGBA) if ext == "png" else img
+        cv2.imwrite(filename, final_image, write_flags)
 
-    #! Dumps to output_path/fui_file_name/
+    def __insert_zlib_alpha_channel_data(self, bitmap:fuiBitmap) -> ...:
+        bufsize = bitmap.width * bitmap.height
+        data = self.__get_raw_data(self.get_start_offset_of("images_size") + bitmap.offset + bitmap.unkn_0x18, bufsize)
+        zlib.decompress(data, 0, bufsize)
+
     def dump_images(self, output_path:str) -> None:
-        header_info = self.HeaderDataInfo["fuiBitmap"]
-        start:int = self.get_start_offset_of("fuiBitmap")
-        image_data_start:int = start + header_info.section_size
         bitmaps = self.get_bitmaps()
         if len(bitmaps) == 0:
             print("This fui file does not contain any images")
             return
-
+        image_data_start:int = self.get_start_offset_of("images_size")
         output_path = f"{output_path}/{self.header.swf_name.replace('.swf','')}"
         self.validate_folder_dest(output_path)
-
-        # image_count = 0
+        count = 0
         for symbol in self.get_symbols():
-            if symbol.obj_type == 3: 
-                # image_count += 1
-                bitmap_data = bitmaps[symbol.index]
-                # print(f"{symbol.name}({symbol.index}):\n\t{bitmap_data}")
-                image_start:int = image_data_start + bitmap_data.offset
-                self.__dump_image(f"{output_path}/{symbol.name}", image_start, bitmap_data.size)
+            if symbol.obj_type == 3:
+                bitmap = bitmaps[symbol.index]
+                if bitmap.flags == 8: self.__insert_zlib_alpha_channel_data(bitmap)
+                image_start:int = image_data_start + bitmap.offset
+                self.__dump_image(f"{output_path}/{symbol.name}", image_start, bitmap.size)
+                count += 1
+        print("Successfully dumped all images!\n" if count == len(bitmaps) else "", end="")
 
-        # print("Dumped:",image_count)
-        # print("Contained:",len(self.get_bitmaps()))
-
+    #! TODO: refactor and remove DRY code
     def dump_raw(self, output_path:str) -> None:
+        bitmaps = self.get_bitmaps()
+        if len(bitmaps) == 0:
+            print("This fui file does not contain any images")
+            return
+        image_data_start:int = self.get_start_offset_of("images_size")
         output_path = f"{output_path}/{self.header.swf_name.replace('.swf','')}"
         self.validate_folder_dest(output_path)
-        header_info = self.HeaderDataInfo["fuiBitmap"]
-        start:int = self.get_start_offset_of("fuiBitmap")
-        image_data_start:int = start + header_info.section_size
-        for i,bitmap in enumerate(self.get_bitmaps()):
-            image_start:int = image_data_start + bitmap.offset
-            self.__dump_image(f"{output_path}/image_{i}", image_start, bitmap.size)
+        for i,bitmap in enumerate(bitmaps):
+            image_offset:int = image_data_start + bitmap.offset
+            self.__dump_image(f"{output_path}/image_{i}", image_offset, bitmap.size)
 
     def get_start_offset_of(self, section_name:str) -> int:
         if section_name not in self.HeaderDataInfo.keys() or self.HeaderDataInfo[section_name].count == 0: return -1
@@ -215,13 +222,16 @@ class fuiParser:
             offset += header_info.section_size
         return -1
 
-    def get_image_by_name(self, name:str) -> fuiBitmap:
+    def get_image_by_name(self, name:str) -> list[fuiBitmap] | fuiBitmap | None:
+        results = []
         for symbol in self.get_symbols():
             if symbol.obj_type != 3: continue
-            if symbol.name == name:
-                print(self.__get_indexed_offset("fuiBitmap",symbol.index))
-                return self.get_bitmaps()[symbol.index]
-        raise Exception(f"Could not find image named '{name}'")
+            if name.lower() in symbol.name.lower():
+                print(f"{symbol.name} | Offset: {self.__get_indexed_offset('fuiBitmap',symbol.index)}\t{self.get_bitmaps()[symbol.index]}")
+                results.append(self.get_bitmaps()[symbol.index])
+        if len(results) > 0: return results if len(results) > 1 else results[0]
+        print(f"Could not find image named '{name}'")
+        return None
 
     def __str__(self) -> str:
         res:str = ""
