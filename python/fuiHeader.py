@@ -23,6 +23,5 @@ Header Size: {self.header_size}
 Swf Name: {self.swf_name}
 Stage: {self.rect}
 Stage Size: {self.rect.get_size()}
-
-Object Counts: {self.data_counts}
 """
+# Object Counts: {self.data_counts}
