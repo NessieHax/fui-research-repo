@@ -45,7 +45,7 @@ class fuiParser:
             "fuiReference"          : makeHeaderInfo(self.header.data_counts, 8, 0x48, fuiReference),  #! 0x6c | fuiObject.eFuiObjectType , char ref_name[64] , unknown value(needs swap)
             "fuiEdittext"           : makeHeaderInfo(self.header.data_counts, 9, 0x138, fuiEdittext), #! 0x70 | unkn int , fuiRect , 1 unkn int, unkn float , fuiRGBA , fuiRect(maybe), 2 unkn int, char html_text_format[0x100 max!], 
             "fuiFontName"           : makeHeaderInfo(self.header.data_counts, 13, 0x104),#! 0x80 | unkn int , char font_name[64], unkn int , char [0x40], unkn int , char [0x40]
-            "fuiSymbol"             : makeHeaderInfo(self.header.data_counts, 10, 0x48, fuiSymbol), #! 0x74 | char symbol_name[64] , fuiObject.eFuiObjectType , unkn int
+            "fuiSymbol"             : makeHeaderInfo(self.header.data_counts, 10, 0x48, fuiSymbol), #! 0x74 | char symbol_name[64] , fuiObject.eFuiObjectType , list index
             "fuiImportAsset"        : makeHeaderInfo(self.header.data_counts, 14, 0x40, fuiImportAsset), #! 0x84 | char asset_name[64]
             "fuiBitmap"             : makeHeaderInfo(self.header.data_counts, 11, 0x20, fuiBitmap), #! 0x78 | fuiObject.eFuiObjectType , unkn int , width(int swapped) , height(int swapped) , unkn int , compressed_image_size(png/jpeg compression)
             "images_size"           : makeHeaderInfo(self.header.data_counts, 12, 0x1),  #! 0x7c | size of bytes at the end
@@ -162,9 +162,34 @@ class fuiParser:
     def get_edittext(self) -> list:
         return self.__parsed_objects["fuiEdittext"]
 
-    def __decode_image(self, raw_data:bytes | bytearray, read_flags:int = cv2.IMREAD_COLOR | cv2.IMREAD_UNCHANGED) -> None:
+    def print_timeline_tree(self) -> None:
+        for data in self.get_timelines():
+            if data.symbol_index < 0: continue
+            print(self.get_symbols()[data.symbol_index].name)
+            for i in range(data.frame_count): 
+                frame = self.get_timeline_frames()[data.frame_index+i]
+                print(f" -> {frame}")
+                for evnt_idx in range(frame.event_count):
+                    evnt = self.get_timeline_events()[frame.event_index+evnt_idx]
+                    # if evnt.name_index > -1: print(f" -> {self.get_timeline_event_names()[frame.event_index+evnt_idx].name}: ",end="")
+                    print(f"   -> {evnt}")
+            for i in range(data.action_count):
+                print(f" -> {self.get_timeline_actions()[data.action_index+i]}")
+
+    def __decode_image(self, raw_data:bytes | bytearray, read_flags:int = cv2.IMREAD_COLOR | cv2.IMREAD_UNCHANGED) -> bytearray:
         data = numpy.asarray(bytearray(raw_data), dtype=numpy.uint8)
         return cv2.imdecode(data, read_flags)
+
+    def __encode_image(self, raw_data:bytes | bytearray, ext:str) -> bytearray:
+        data = numpy.asarray(bytearray(raw_data), dtype=numpy.uint8)
+        return cv2.imencode(ext, data)
+
+    #! TODO: implement this 
+    def __insert_zlib_alpha_channel_data(self, bitmap:fuiBitmap) -> ...:
+        bufsize = bitmap.size - bitmap.unkn_0x18
+        data = self.__get_raw_data(self.get_start_offset_of("images_size") + bitmap.offset + bitmap.unkn_0x18, bufsize)
+        output = zlib.decompress(data, 0, bufsize)
+        print(output[0:4])
 
     def __dump_image(self, output_file:str, offset:int, size:int) -> None:
         png_header_magic = b'PNG'
@@ -177,11 +202,6 @@ class fuiParser:
         write_flags = [cv2.IMWRITE_PNG_COMPRESSION] if ext == "png" else [cv2.IMWRITE_JPEG_QUALITY]
         final_image = cv2.cvtColor(img, cv2.COLOR_BGRA2RGBA) if ext == "png" else img
         cv2.imwrite(filename, final_image, write_flags)
-
-    def __insert_zlib_alpha_channel_data(self, bitmap:fuiBitmap) -> ...:
-        bufsize = bitmap.width * bitmap.height
-        data = self.__get_raw_data(self.get_start_offset_of("images_size") + bitmap.offset + bitmap.unkn_0x18, bufsize)
-        zlib.decompress(data, 0, bufsize)
 
     def dump_images(self, output_path:str) -> None:
         bitmaps = self.get_bitmaps()
@@ -227,8 +247,9 @@ class fuiParser:
         for symbol in self.get_symbols():
             if symbol.obj_type != 3: continue
             if name.lower() in symbol.name.lower():
-                print(f"{symbol.name} | Offset: {self.__get_indexed_offset('fuiBitmap',symbol.index)}\t{self.get_bitmaps()[symbol.index]}")
-                results.append(self.get_bitmaps()[symbol.index])
+                bitmap = self.get_bitmaps()[symbol.index]
+                print(f"{symbol.name} | Offset: {self.__get_indexed_offset('fuiBitmap',symbol.index)}\t{bitmap}")
+                results.append(bitmap)
         if len(results) > 0: return results if len(results) > 1 else results[0]
         print(f"Could not find image named '{name}'")
         return None
