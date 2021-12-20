@@ -1,5 +1,4 @@
 from dataclasses import dataclass, field
-# from typing import overload
 import struct
 
 from fuiDataStructures.fuiRect import fuiRect
@@ -8,17 +7,17 @@ from fuiDataStructures.fuiRect import fuiRect
 class fuiTimeline:
     fmt = "<i4h4f"
 
-    unkn_0x0:int = field(default_factory=int)
-    unkn_0x4:int = field(default_factory=int)
-    unkn_0x6:int = field(default_factory=int)
-    unkn_0x8:int = field(default_factory=int)
-    unkn_0xa:int = field(default_factory=int)
+    symbol_index:int = field(default_factory=int)
+    frame_index:int = field(default_factory=int)
+    frame_count:int = field(default_factory=int)
+    action_index:int = field(default_factory=int)
+    action_count:int = field(default_factory=int)
     rect:fuiRect = field(default_factory=fuiRect)
     def __init__(self, raw_bytes:bytes):
         data = struct.unpack(self.fmt, raw_bytes)
-        self.unkn_0x0 = data[0]
-        self.unkn_0x4 = data[1]
-        self.unkn_0x6 = data[2]
-        self.unkn_0x8 = data[3]
-        self.unkn_0xa = data[4]
+        self.symbol_index = data[0]
+        self.frame_index = data[1]
+        self.frame_count = data[2]
+        self.action_index = data[3]
+        self.action_count = data[4]
         self.rect = fuiRect(data[5], data[6], data[7], data[8])
