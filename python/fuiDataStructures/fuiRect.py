@@ -24,4 +24,4 @@ class fuiRect:
         return self.__rect.__str__()
 
     def __repr__(self) -> str:
-        return self.__rect.__repr__()
+        return f"{self.get_size()}"
