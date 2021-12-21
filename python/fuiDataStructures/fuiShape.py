@@ -8,13 +8,13 @@ class fuiShape:
     fmt = "<3i4f"
 
     unk_0x0:int = field(default_factory=int)
-    unk_0x4:int = field(default_factory=int)
-    obj_type:int = field(default_factory=int)
-    rect:fuiRect = field(default_factory=fuiRect)
+    component_index:int = field(default_factory=int)
+    component_count:int = field(default_factory=int)
+    scale:fuiRect = field(default_factory=fuiRect)
 
     def __init__(self, raw_bytes:bytes):
         data = struct.unpack(self.fmt, raw_bytes)
         self.unk_0x0 = data[0]
-        self.unk_0x4 = data[1]
-        self.obj_type = data[2]
-        self.rect = fuiRect(data[3], data[4], data[5], data[6])
+        self.component_index = data[1]
+        self.component_count = data[2]
+        self.scale = fuiRect(data[3], data[4], data[5], data[6])
