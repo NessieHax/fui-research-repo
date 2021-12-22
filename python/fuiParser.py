@@ -182,16 +182,18 @@ class fuiParser:
     #! TODO: implement this
     #! JPEG's are stupid lol
     def __insert_zlib_alpha_channel_data(self, bitmap:fuiBitmap, img:numpy.ndarray) -> None:
-        if bitmap.zlib_data_offset == 0: return
+        if bitmap.zlib_data_offset == 0:
+            print("No zlib data offset was provided")
+            return
         bufsize = bitmap.size - bitmap.zlib_data_offset
         data = self.__get_raw_data(self.get_start_offset_of("images_size") + bitmap.offset + bitmap.zlib_data_offset, bufsize)
         output = zlib.decompress(data, 0, bufsize)
-        print(len(output), bitmap.width * bitmap.height)
+        # print(len(output), bitmap.width * bitmap.height)
         for i, col in enumerate(img):
             for j, color in enumerate(col):
                 alpha_data = output[i*len(col)+j]
                 if alpha_data == 0:
-                    color = 0
+                    color[:4] = 0
                     continue
                 maxval = 0xff
                 color[3] = alpha_data
@@ -208,11 +210,13 @@ class fuiParser:
     def __dump_image(self, output_file:str, bitmap:fuiBitmap) -> None:
         data = self.__get_raw_data(self.get_start_offset_of("images_size") + bitmap.offset, bitmap.size)
         ext = self.__get_extention(data)
-        filename = f"{output_file}.{ext}"
-        print("Dumping:", filename[len(os.getcwd()):])
+        filename = f"{output_file}.png"
+        # print("Dumping:", filename[len(os.getcwd()):])
         img = self.__decode_image(data)
-        final_image = cv2.cvtColor(img, cv2.COLOR_BGRA2RGBA if ext == "png" else cv2.COLOR_RGB2RGBA)
-        if bitmap.flags == 8: 
+        final_image = cv2.cvtColor(img, cv2.COLOR_RGB2RGBA if ext == "jpeg" else cv2.COLOR_BGRA2RGBA)
+        print(bitmap)
+        if bitmap.flags == 8:
+            # print("jpeg data!")
             self.__insert_zlib_alpha_channel_data(bitmap, final_image)
             # cv2.imshow("preview", final_image)
             # cv2.waitKey(0)
