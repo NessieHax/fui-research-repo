@@ -11,7 +11,7 @@ class fuiBitmap:
     height:int = field(default_factory=int)
     offset:int = field(default_factory=int)
     size:int = field(default_factory=int)
-    unkn_0x18:int = field(default_factory=int)
+    zlib_data_offset:int = field(default_factory=int)
     unkn_0x1c:int = field(default_factory=int)
 
     def __init__(self, raw_bytes:bytes):
@@ -22,5 +22,5 @@ class fuiBitmap:
         self.height = data[3]
         self.offset = data[4]
         self.size = data[5]
-        self.unkn_0x18 = data[6] #! zlib compressed size ??
+        self.zlib_data_offset = data[6] #! zlib compressed size ??
         self.unkn_0x1c = data[7] #! set to -1 if they was an error at runtime
