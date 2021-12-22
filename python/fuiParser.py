@@ -164,75 +164,90 @@ class fuiParser:
 
     def print_timeline_tree(self) -> None:
         for data in self.get_timelines():
-            if data.symbol_index < 0: continue
-            print(self.get_symbols()[data.symbol_index].name)
-            for i in range(data.frame_count): 
-                frame = self.get_timeline_frames()[data.frame_index+i]
+            print(self.get_symbols()[data.symbol_index].name if data.symbol_index > -1 else "Unknown")
+            for frame in self.get_timeline_frames()[data.frame_index:data.frame_index + data.frame_count]:
                 print(f" -> {frame}")
-                for evnt_idx in range(frame.event_count):
-                    evnt = self.get_timeline_events()[frame.event_index+evnt_idx]
-                    # if evnt.name_index > -1: print(f" -> {self.get_timeline_event_names()[frame.event_index+evnt_idx].name}: ",end="")
-                    print(f"   -> {evnt}")
-            for i in range(data.action_count):
-                print(f" -> {self.get_timeline_actions()[data.action_index+i]}")
+                for evnt in self.get_timeline_events()[frame.event_index:frame.event_index + frame.event_count]:
+                    print("  -> ",end="")
+                    print(f"{self.get_timeline_event_names()[evnt.name_index].name}: "if evnt.name_index > -1 else "Unknown: ",end="")
+                    print(f"{evnt}")
 
-    def __decode_image(self, raw_data:bytes | bytearray, read_flags:int = cv2.IMREAD_COLOR | cv2.IMREAD_UNCHANGED) -> bytearray:
+            for act in self.get_timeline_actions()[data.action_index:data.action_index + data.action_count]:
+                print(f" -> {act}")
+
+    def __decode_image(self, raw_data:bytes | bytearray, read_flags:int = cv2.IMREAD_ANYCOLOR | cv2.IMREAD_UNCHANGED) -> bytearray:
         data = numpy.asarray(bytearray(raw_data), dtype=numpy.uint8)
         return cv2.imdecode(data, read_flags)
 
-    def __encode_image(self, raw_data:bytes | bytearray, ext:str) -> bytearray:
-        data = numpy.asarray(bytearray(raw_data), dtype=numpy.uint8)
-        return cv2.imencode(ext, data)
-
-    #! TODO: implement this 
-    def __insert_zlib_alpha_channel_data(self, bitmap:fuiBitmap) -> ...:
-        bufsize = bitmap.size - bitmap.unkn_0x18
-        data = self.__get_raw_data(self.get_start_offset_of("images_size") + bitmap.offset + bitmap.unkn_0x18, bufsize)
+    #! TODO: implement this
+    #! JPEG's are stupid lol
+    def __insert_zlib_alpha_channel_data(self, bitmap:fuiBitmap, img:numpy.ndarray) -> None:
+        if bitmap.zlib_data_offset == 0: return
+        bufsize = bitmap.size - bitmap.zlib_data_offset
+        data = self.__get_raw_data(self.get_start_offset_of("images_size") + bitmap.offset + bitmap.zlib_data_offset, bufsize)
         output = zlib.decompress(data, 0, bufsize)
-        print(output[0:4])
-
-    def __dump_image(self, output_file:str, offset:int, size:int) -> None:
+        print(len(output), bitmap.width * bitmap.height)
+        for i, col in enumerate(img):
+            for j, color in enumerate(col):
+                alpha_data = output[i*len(col)+j]
+                if alpha_data == 0:
+                    color = 0
+                    continue
+                maxval = 0xff
+                color[3] = alpha_data
+                val = alpha_data / maxval
+                x = color[:3] / val
+                x = numpy.nan_to_num(x, nan=maxval, posinf=maxval, neginf=maxval)
+                a = numpy.where(maxval-x<=0.0, 255.0, x)
+                color[:3] = a.astype(numpy.uint8)
+            
+    def __get_extention(self, data:bytes) -> str:
         png_header_magic = b'PNG'
-        out_data = self.__get_raw_data(offset, size)
-        ext:str = "png" if out_data[1:4] == png_header_magic else "jpeg"
+        return "png" if data[1:4] == png_header_magic else "jpeg"
+
+    def __dump_image(self, output_file:str, bitmap:fuiBitmap) -> None:
+        data = self.__get_raw_data(self.get_start_offset_of("images_size") + bitmap.offset, bitmap.size)
+        ext = self.__get_extention(data)
         filename = f"{output_file}.{ext}"
         print("Dumping:", filename[len(os.getcwd()):])
-        img = self.__decode_image(out_data)
-        # print(img, filename[len(os.getcwd()):]) #! raw pixel RGBA byte order
-        write_flags = [cv2.IMWRITE_PNG_COMPRESSION] if ext == "png" else [cv2.IMWRITE_JPEG_QUALITY]
-        final_image = cv2.cvtColor(img, cv2.COLOR_BGRA2RGBA) if ext == "png" else img
+        img = self.__decode_image(data)
+        final_image = cv2.cvtColor(img, cv2.COLOR_BGRA2RGBA if ext == "png" else cv2.COLOR_RGB2RGBA)
+        if bitmap.flags == 8: 
+            self.__insert_zlib_alpha_channel_data(bitmap, final_image)
+            # cv2.imshow("preview", final_image)
+            # cv2.waitKey(0)
+            # cv2.destroyAllWindows()
+
+        write_flags = [cv2.IMWRITE_PNG_COMPRESSION] #if ext == "png" else [cv2.IMWRITE_PNG_COMPRESSION]
         cv2.imwrite(filename, final_image, write_flags)
+
+    def contains_images(self) -> bool:
+        return len(self.get_bitmaps()) > 0
 
     def dump_images(self, output_path:str) -> None:
         bitmaps = self.get_bitmaps()
-        if len(bitmaps) == 0:
+        if not self.contains_images():
             print("This fui file does not contain any images")
             return
-        image_data_start:int = self.get_start_offset_of("images_size")
         output_path = f"{output_path}/{self.header.swf_name.replace('.swf','')}"
         self.validate_folder_dest(output_path)
         count = 0
         for symbol in self.get_symbols():
             if symbol.obj_type == 3:
                 bitmap = bitmaps[symbol.index]
-                if bitmap.flags == 8: self.__insert_zlib_alpha_channel_data(bitmap)
-                image_start:int = image_data_start + bitmap.offset
-                self.__dump_image(f"{output_path}/{symbol.name}", image_start, bitmap.size)
+                self.__dump_image(f"{output_path}/{symbol.name}", bitmap)
                 count += 1
         print("Successfully dumped all images!\n" if count == len(bitmaps) else "", end="")
 
-    #! TODO: refactor and remove DRY code
     def dump_raw(self, output_path:str) -> None:
         bitmaps = self.get_bitmaps()
-        if len(bitmaps) == 0:
+        if not self.contains_images():
             print("This fui file does not contain any images")
             return
-        image_data_start:int = self.get_start_offset_of("images_size")
         output_path = f"{output_path}/{self.header.swf_name.replace('.swf','')}"
         self.validate_folder_dest(output_path)
         for i,bitmap in enumerate(bitmaps):
-            image_offset:int = image_data_start + bitmap.offset
-            self.__dump_image(f"{output_path}/image_{i}", image_offset, bitmap.size)
+            self.__dump_image(f"{output_path}/image_{i}", bitmap)
 
     def get_start_offset_of(self, section_name:str) -> int:
         if section_name not in self.HeaderDataInfo.keys() or self.HeaderDataInfo[section_name].count == 0: return -1
