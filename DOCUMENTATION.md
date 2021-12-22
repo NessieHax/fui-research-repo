@@ -114,7 +114,10 @@ Timeline member:
 | Name | Offset | Byte Size | Type | Description |
 | :-:|:-:|:-:|:-:|:-:|
 | Unknown | 0x0 | 4 | int | 
-| Unknown | 0x4 | 8 | short | 4 unknown short values
+| Frame Index | 0x4 | 2 | short | 
+| Frame Count | 0x6 | 2 | short | 
+| Action Index | 0x8 | 2 | short | 
+| Action Count | 0xa | 2 | short | 
 | Rectangle | 0xc | 0x10 | fuiRect | Unknown fuiRect
 
 ## fuiTimelineAction
@@ -154,9 +157,9 @@ Timeline member:
 
 | Name | Offset | Byte Size | Type | Description |
 | :-:|:-:|:-:|:-:|:-:|
-| Frame Name | 0x0 | 0x40 | char[] | Name of the FUI Timeline Frame
-| Unknown | 0x40 | 4 | int | 
-| Unknown | 0x44 | 4 | int | 
+| Frame Name | 0x0 | 0x40 | char[] | Name of the Frame
+| Event Index | 0x40 | 4 | int | Index to start from fuiTimelineEvent
+| Event Count | 0x44 | 4 | int | Count of fuiTimelineEvents that get used
 
 ## fuiTimelineEvent
 
@@ -178,8 +181,8 @@ Timeline member:
 | Name | Offset | Byte Size | Type | Description |
 | :-:|:-:|:-:|:-:|:-:|
 | Symbol Index | 0x0 | 4 | int | Index of Symbol (resolved at runtime)
-| Reference Name | 0x4 | 0x40 | char[] | 
-| Unknown | 0x44 | 4 | int | fuiFile Index (resolved at runtime)
+| Name | 0x4 | 0x40 | char[] | Reference to a Symbol that is contained in an Import file
+| Index | 0x44 | 4 | int | fuiFile Index (resolved at runtime)
 
 ## fuiEdittext
 
@@ -224,15 +227,15 @@ TODO: get proper names and types!
 
 ## fuiBitmap
 
-**Important: png file use bgra instead of rgba!**
+**Important**: png file use bgra instead of rgba!
 
 | Name | Offset | Byte Size | Type | Description |
 | :-:|:-:|:-:|:-:|:-:|
 | Unknown | 0x0 | 4 | int | Could be a kind of id
 | Object Type | 0x4 | 4 | int | Type of the bitmap (1 = Shape, 3 = Bitmap) (not tested!)
-| Scale Width | 0x8 | 4 | int | Width value to scale the given Image
-| Scale Height | 0xc | 4 | int | Height value to scale the given Image
-| Offset | 0x10 | 4 | int | Offset of the Start
+| Width | 0x8 | 4 | int | Width value of the given Image(png file crash upon changing | jpegs get visual errors in-game)
+| Height | 0xc | 4 | int | Height value of the given Image(png file crash upon changing | jpegs get visual errors in-game)
+| Offset | 0x10 | 4 | int | Offset of the Image data
 | Size | 0x14 | 4 | int | Size of the image
-| Unknown | 0x18 | 4 | int | 
-| Unknown | 0x1c | 4 | int | 
+| Unknown | 0x18 | 4 | int | zlib compressed data start offset
+| Unknown | 0x1c | 4 | int | -1 if something failed at runtime
