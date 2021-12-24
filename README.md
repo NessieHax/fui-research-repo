@@ -15,7 +15,7 @@ Reference used can be found [here](https://www.adobe.com/content/dam/acom/en/dev
 ```console
 git clone https://github.com/NessieHax/fui-research-repo.git
 cd fui-research-repo
-pip install -r requirments.txt
+pip install -r requirements.txt
 ```
 
 ## Examples
