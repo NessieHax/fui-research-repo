@@ -11,6 +11,13 @@ The FUI File Documentation can be found [here](./DOCUMENTATION.md).
 ## Reference
 Reference used can be found [here](https://www.adobe.com/content/dam/acom/en/devnet/pdf/swf-file-format-spec.pdf).
 
+## Setup
+```console
+git clone https://github.com/NessieHax/fui-research-repo.git
+cd fui-research-repo
+pip install -r requirments.txt
+```
+
 ## Examples
 
 Python 3 Examples can be found [here](./python/example.py).\
