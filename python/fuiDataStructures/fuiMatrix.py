@@ -7,7 +7,7 @@ class fuiMatrix:
         self.matrix:dict = {
             "Scale" : (scale_x, scale_y),
             "Rotate_skew" : (rotate_skew0, rotate_skew1),
-            "Tranlate" : (translae_x, translae_y)
+            "Translate" : (translae_x, translae_y)
         }
 
     def get(self) -> dict:
