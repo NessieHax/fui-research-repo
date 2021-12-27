@@ -1,13 +1,13 @@
-from enum import Enum
 
-class eFuiObjectType(Enum):
-    Stage = 0
-    Shape = 1
-    Timeline = 2
-    Bitmap = 3
-    EditText = 5
-    CodeGenRect = 6
+class eFuiObjectType:
+    STAGE = 0
+    SHAPE = 1
+    TIMELINE = 2
+    BITMAP = 3
+    REFERENCE = 4
+    EDITTEXT = 5
+    CODEGENRECT = 6
 
 class fuiObject:
-    def __init__(self, _type:eFuiObjectType):
-        self.type:eFuiObjectType = _type
+    def __init__(self, _type:int):
+        self.type:int = _type
