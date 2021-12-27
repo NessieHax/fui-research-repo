@@ -5,6 +5,7 @@ from collections.abc import Callable
 import cv2, numpy, zlib
 
 from fuiHeader import fuiHeader
+from fuiDataStructures.fuiObject import eFuiObjectType
 from fuiDataStructures.fuiImportAsset import fuiImportAsset
 from fuiDataStructures.fuiBitmap import fuiBitmap
 from fuiDataStructures.fuiSymbol import fuiSymbol
@@ -85,11 +86,13 @@ class fuiParser:
         for _,hInfo in self.HeaderDataInfo.items(): size += hInfo.section_size
         return size == self.header.content_size
 
-    def validate_folder_dest(self, output_path:str) -> None:
+    def validate_folder_dest(self, output_path:str) -> str:
+        output_path = os.path.join(output_path, f"{self.header.swf_name.replace('.swf','')}")
         try: os.makedirs(output_path)
         #! clear out directory if already exists
-        except OSError: 
+        except OSError:
             self.clean(output_path)
+        return output_path
 
     #! sets up Object lists
     def parse(self) -> None:
@@ -110,7 +113,8 @@ class fuiParser:
 
     #! TODO: make this robust | folder deletion
     def clean(self, path:str) -> None:
-        for root, _, files in os.walk(path):
+        for root, dirs, files in os.walk(path):
+            if dirs: self.clean(dirs)
             [os.remove(os.path.join(root, file)) for file in files]
     
     def __get_raw_data(self, offset:int, size:int) -> bytearray:
@@ -118,7 +122,7 @@ class fuiParser:
 
     def __get_indexed_offset(self, section_name:str, index:int = 0) -> int:
         if not self.is_valid_index(section_name, index): raise Exception("Index out of range")
-        return self.get_start_offset_of(section_name) + index * self.__HeaderDataInfo[section_name].element_size if index < self.__HeaderDataInfo[section_name].count else -1
+        return self.get_start_offset_of(section_name) + index * self.__HeaderDataInfo[section_name].element_size
 
     def get_imported_assets(self) -> list:
         return self.__parsed_objects["fuiImportAsset"]
@@ -162,33 +166,54 @@ class fuiParser:
     def get_edittext(self) -> list:
         return self.__parsed_objects["fuiEdittext"]
 
-    def print_timeline_tree(self) -> None:
-        for data in self.get_timelines():
-            print(self.get_symbols()[data.symbol_index].name if data.symbol_index > -1 else "Unknown")
-            for frame in self.get_timeline_frames()[data.frame_index:data.frame_index + data.frame_count]:
-                print(f" -> {frame}")
-                for evnt in self.get_timeline_events()[frame.event_index:frame.event_index + frame.event_count]:
-                    print("  -> ",end="")
-                    print(f"{self.get_timeline_event_names()[evnt.name_index].name}: "if evnt.name_index > -1 else "Unknown: ",end="")
-                    print(f"{evnt}")
-
-            for act in self.get_timeline_actions()[data.action_index:data.action_index + data.action_count]:
+    def __timline_tree(self, timeline:fuiTimeline) -> ...:
+        print(timeline)
+        for frame in self.get_timeline_frames()[timeline.frame_index:timeline.frame_index + timeline.frame_count]:
+            print(f" -> {frame}")
+            for evnt in self.get_timeline_events()[frame.event_index:frame.event_index + frame.event_count]:
+                print("  -> ",end="")
+                print(f"{self.get_timeline_event_names()[evnt.name_index].name}: "if evnt.name_index > -1 else "Unknown: ",end="")
+                print(f"{evnt}")
+                print("   ",end="")
+                if evnt.obj_type == eFuiObjectType.SHAPE and self.is_valid_index("fuiShape", evnt.index):
+                    print(f"   -> {self.get_shapes()[evnt.index]}")
+                if evnt.obj_type == eFuiObjectType.REFERENCE:
+                    print(f"-> {self.get_references()[evnt.index]}")
+                if evnt.obj_type == eFuiObjectType.TIMELINE:
+                    self.__timline_tree(self.get_timelines()[evnt.index])
+                if evnt.obj_type == eFuiObjectType.BITMAP:
+                    print(f"-> {self.get_bitmaps()[evnt.index]}")
+                if evnt.obj_type == eFuiObjectType.EDITTEXT:
+                    print(f"-> {self.get_edittext()[evnt.index]}")
+            print()
+            for act in self.get_timeline_actions()[timeline.action_index:timeline.action_index + timeline.action_count]:
                 print(f" -> {act}")
+            print()
+
+    def print_timeline_tree(self) -> None:
+        for symbol in self.get_symbols():
+            if symbol.obj_type != eFuiObjectType.TIMELINE: continue
+            print(symbol.name)
+            data = self.get_timelines()[symbol.index]
+            self.__timline_tree(data)
+            
+
+    def contains_images(self) -> bool:
+        return len(self.get_bitmaps()) > 0
 
     def __decode_image(self, raw_data:bytes | bytearray, read_flags:int = cv2.IMREAD_ANYCOLOR | cv2.IMREAD_UNCHANGED) -> bytearray:
         data = numpy.asarray(bytearray(raw_data), dtype=numpy.uint8)
         return cv2.imdecode(data, read_flags)
 
-    #! TODO: implement this
     #! JPEG's are stupid lol
     def __insert_zlib_alpha_channel_data(self, bitmap:fuiBitmap, img:numpy.ndarray) -> None:
         if bitmap.zlib_data_offset == 0:
             print("No zlib data offset was provided")
             return
         bufsize = bitmap.size - bitmap.zlib_data_offset
-        data = self.__get_raw_data(self.get_start_offset_of("images_size") + bitmap.offset + bitmap.zlib_data_offset, bufsize)
+        start_offset = self.get_start_offset_of("images_size")
+        data = self.__get_raw_data(start_offset + bitmap.offset + bitmap.zlib_data_offset, bufsize)
         output = zlib.decompress(data, 0, bufsize)
-        # print(len(output), bitmap.width * bitmap.height)
         for i, col in enumerate(img):
             for j, color in enumerate(col):
                 alpha_data = output[i*len(col)+j]
@@ -197,50 +222,40 @@ class fuiParser:
                     continue
                 maxval = 0xff
                 color[3] = alpha_data
-                val = alpha_data / maxval
-                x = color[:3] / val
+                x = color[:3] / (alpha_data / maxval)
                 x = numpy.nan_to_num(x, nan=maxval, posinf=maxval, neginf=maxval)
                 a = numpy.where(maxval-x<=0.0, 255.0, x)
                 color[:3] = a.astype(numpy.uint8)
-            
-    def __get_extention(self, data:bytes) -> str:
-        png_header_magic = b'PNG'
-        return "png" if data[1:4] == png_header_magic else "jpeg"
 
     def __dump_image(self, output_file:str, bitmap:fuiBitmap) -> None:
         data = self.__get_raw_data(self.get_start_offset_of("images_size") + bitmap.offset, bitmap.size)
-        ext = self.__get_extention(data)
-        filename = f"{output_file}.png"
-        # print("Dumping:", filename[len(os.getcwd()):])
-        img = self.__decode_image(data)
-        final_image = cv2.cvtColor(img, cv2.COLOR_RGB2RGBA if ext == "jpeg" else cv2.COLOR_BGRA2RGBA)
+        ext = "png" if (bitmap.format == 8 or bitmap.format < 6) else "jpeg"
+        filename = f"{output_file}.{ext}"
+        print("Dumping:", filename[len(os.getcwd()):])
         print(bitmap)
-        if bitmap.flags == 8:
-            # print("jpeg data!")
-            self.__insert_zlib_alpha_channel_data(bitmap, final_image)
-            # cv2.imshow("preview", final_image)
-            # cv2.waitKey(0)
-            # cv2.destroyAllWindows()
+        img = self.__decode_image(data)
+        #! TODO: clean up !!
+        #!+----------------------------------------+
+        final_image = cv2.cvtColor(img, cv2.COLOR_RGB2RGBA if bitmap.format > 5 else cv2.COLOR_BGRA2RGBA) #! no conversion needed for eBitmapFormat.JPEG_NO_ALPHA_DATA
+        if bitmap.format == bitmap.eBitmapFormat.JPEG_WITH_ALPHA_DATA and bitmap.zlib_data_offset > 0: self.__insert_zlib_alpha_channel_data(bitmap, final_image)
+        write_flags = [cv2.IMWRITE_PNG_COMPRESSION] if ext == "png" else [cv2.IMWRITE_JPEG_QUALITY]
+        #!+----------------------------------------+
 
-        write_flags = [cv2.IMWRITE_PNG_COMPRESSION] #if ext == "png" else [cv2.IMWRITE_PNG_COMPRESSION]
         cv2.imwrite(filename, final_image, write_flags)
 
-    def contains_images(self) -> bool:
-        return len(self.get_bitmaps()) > 0
 
     def dump_images(self, output_path:str) -> None:
         bitmaps = self.get_bitmaps()
         if not self.contains_images():
             print("This fui file does not contain any images")
             return
-        output_path = f"{output_path}/{self.header.swf_name.replace('.swf','')}"
-        self.validate_folder_dest(output_path)
+        output_path = self.validate_folder_dest(output_path)
         count = 0
         for symbol in self.get_symbols():
-            if symbol.obj_type == 3:
-                bitmap = bitmaps[symbol.index]
-                self.__dump_image(f"{output_path}/{symbol.name}", bitmap)
-                count += 1
+            if symbol.obj_type != eFuiObjectType.BITMAP: continue
+            bitmap = bitmaps[symbol.index]
+            self.__dump_image(f"{output_path}/{symbol.name}", bitmap)
+            count += 1
         print("Successfully dumped all images!\n" if count == len(bitmaps) else "", end="")
 
     def dump_raw(self, output_path:str) -> None:
@@ -248,10 +263,8 @@ class fuiParser:
         if not self.contains_images():
             print("This fui file does not contain any images")
             return
-        output_path = f"{output_path}/{self.header.swf_name.replace('.swf','')}"
-        self.validate_folder_dest(output_path)
-        for i,bitmap in enumerate(bitmaps):
-            self.__dump_image(f"{output_path}/image_{i}", bitmap)
+        output_path = self.validate_folder_dest(output_path)
+        [self.__dump_image(f"{output_path}/image_{i}", bitmap) for i,bitmap in enumerate(bitmaps)]
 
     def get_start_offset_of(self, section_name:str) -> int:
         if section_name not in self.HeaderDataInfo.keys() or self.HeaderDataInfo[section_name].count == 0: return -1
@@ -261,16 +274,17 @@ class fuiParser:
             offset += header_info.section_size
         return -1
 
-    def get_image_by_name(self, name:str) -> list[fuiBitmap] | fuiBitmap | None:
+    def find(self, name:str) -> list[fuiBitmap] | fuiBitmap | list[fuiTimeline] | fuiTimeline | None:
         results = []
         for symbol in self.get_symbols():
-            if symbol.obj_type != 3: continue
+            # if symbol.obj_type != eFuiObjectType.BITMAP: continue
             if name.lower() in symbol.name.lower():
-                bitmap = self.get_bitmaps()[symbol.index]
-                print(f"{symbol.name} | Offset: {self.__get_indexed_offset('fuiBitmap',symbol.index)}\t{bitmap}")
-                results.append(bitmap)
+                caller, data_type = (self.get_bitmaps, 'fuiBitmap') if symbol.obj_type == eFuiObjectType.BITMAP else (self.get_timelines, 'fuiTimeline')
+                data = caller()[symbol.index]
+                print(f"{symbol.name} | Offset: {self.__get_indexed_offset(data_type,symbol.index)} | {data}")
+                results.append(data)
         if len(results) > 0: return results if len(results) > 1 else results[0]
-        print(f"Could not find image named '{name}'")
+        print(f"Could not find Symbol named '{name}'")
         return None
 
     def __str__(self) -> str:
