@@ -15,11 +15,11 @@ The following Table gives you Important information about each structure that ca
 | fuiVert | 0x8 | 2D float Vertex
 | fuiTimelineFrame | 0x48 | 
 | fuiTimelineEvent | 0x48 | 
-| fuiTimelineEventName | 0x40 | 
-| fuiReference | 0x48 | Reference to other Symbols
+| fuiTimelineEventName | 0x40 | Name for a given event
+| fuiReference | 0x48 | Reference to Symbols in Imported Assests(Files)
 | fuiEdittext | 0x138 | 
 | fuiFontName | 0x104 | 
-| fuiSymbol | 0x48 | Defined Symbols with Name and Object type
+| fuiSymbol | 0x48 | Defined Symbols with Name and Object type (entry point for objects used in-game)
 | fuiImportAsset | 0x40 | Assests Imports form other .swf/.fui files
 | fuiBitmap | 0x20 | Information about an Image contained in the file
 
@@ -29,9 +29,9 @@ These structures are used in some Elements in an FUI file
 | :-:|:-:|:-:|
 | fuiRect | 0x10 | A Representation of a Rectangle
 | fuiRGBA | 0x4 | Base Color format used in FUI files
-| fuiMatrix | 0x18 | 
+| fuiMatrix | 0x18 | 2D Matrix for Scale, Rotation and Translation
 | fuiColorTransform | 0x20 | 
-| fuiFillStyle | 0x24 | Contains Information for filling 
+| fuiFillStyle | 0x24 | Contains Information for filling
 | fuiObject.eFuiObjectType | 0x4 | Describes the Type of an Element
 
 ## fuiRect
@@ -110,7 +110,6 @@ This is Untested just referenced by the .swf file docs!!
 | Frame Size | 0x88 | 0x10 | fuiRect | Size of the frame ?
 
 ## FUI Timeline
-Timeline member:
 | Name | Offset | Byte Size | Type | Description |
 | :-:|:-:|:-:|:-:|:-:|
 | Unknown | 0x0 | 4 | int | 
@@ -124,27 +123,28 @@ Timeline member:
 
 | Name | Offset | Byte Size | Type | Description |
 | :-:|:-:|:-:|:-:|:-:|
-| Unknown | 0x0 | 4 | short | 2 Unknown short values
-| Unknown Name | 0x4 | 0x40 | char[] | Might be the Action name
-| Unknown Name | 0x44 | 0x40 | char[] | Might be the argv for the action
+| Action Type | 0x0 | 2 | short | action to make
+| Unknown | 0x2 | 2 | short | Probably Value Arg0 for specific Action types
+| String Arg 0 | 0x4 | 0x40 | char[] | 
+| String Arg 1 | 0x44 | 0x40 | char[] | 
 
 
 ## fuiShape
 
 | Name | Offset | Byte Size | Type | Description |
 | :-:|:-:|:-:|:-:|:-:|
-| Unknown Value | 0x0 | 4 | int | 
-| Unknown Value | 0x4 | 4 | int | 
-| Object Type | 0x8 | 4 | int | Type 1(fuiShape) of fuiObject.eFuiObjectType
-| Rectangle | 0xc | 0x10 | fuiRect | Rectangle describing area of the shape points (maybe)
+| Unknown | 0x0 | 4 | int | 
+| Shape Component Index | 0x4 | 4 | int | 
+| Shape Component Count | 0x8 | 4 | int | 
+| Rectangle | 0xc | 0x10 | fuiRect | Size of th given Shape(Component)
 
 ## fuiShapeComponent
 
 | Name | Offset | Byte Size | Type | Description |
 | :-:|:-:|:-:|:-:|:-:|
 | Fill Info | 0x0 | 0x24 | fuiFillStyle | Component Fill Info
-| Unknown | 0x24 | 4 | int | 
-| Unknown | 0x28 | 4 | int | 
+| Vert Index | 0x24 | 4 | int | 
+| Vert Count | 0x28 | 4 | int | 
 
 ## fuiVert
 
@@ -165,8 +165,13 @@ Timeline member:
 
 | Name | Offset | Byte Size | Type | Description |
 | :-:|:-:|:-:|:-:|:-:|
-| Unknown | 0x0 | 0xc | short | 6 unknown short values
-| matrix | 0xc | 0x18 | fuiMatrix
+| Event Type | 0x0 | 0x2 | short | 
+| Object Type | 0x2 | 0x2 | short | 
+| Unknown | 0x4 | 0x2 | short | 
+| Index | 0x6 | 0x2 | short | 
+| Unknown | 0x8 | 0x2 | short | 
+| Name Index | 0xa | 0x2 | short | 
+| matrix | 0xc | 0x18 | fuiMatrix | 
 | ColorTransform | 0x24 | 0x20 | fuiColorTransform |
 | Color | 0x44 | 4 | fuiRGBA |
 
@@ -227,15 +232,15 @@ TODO: get proper names and types!
 
 ## fuiBitmap
 
-**Important**: png file use bgra instead of rgba!
+**Important**: png file use BGRA instead of RGBA!
 
 | Name | Offset | Byte Size | Type | Description |
 | :-:|:-:|:-:|:-:|:-:|
-| Unknown | 0x0 | 4 | int | Could be a kind of id
-| Object Type | 0x4 | 4 | int | Type of the bitmap (1 = Shape, 3 = Bitmap) (not tested!)
-| Width | 0x8 | 4 | int | Width value of the given Image(png file crash upon changing | jpegs get visual errors in-game)
-| Height | 0xc | 4 | int | Height value of the given Image(png file crash upon changing | jpegs get visual errors in-game)
-| Offset | 0x10 | 4 | int | Offset of the Image data
+| Unknown | 0x0 | 4 | int | Could be some kind of id
+| Image Format | 0x4 | 4 | int | Format to use ([see fuiBitmap](./python/fuiDataStructures/fuiBitmap.py))
+| Width | 0x8 | 4 | int | Width of the given Image(png file crash upon changing | jpegs get visual errors in-game)
+| Height | 0xc | 4 | int | Height of the given Image(png file crash upon changing | jpegs get visual errors in-game)
+| Offset | 0x10 | 4 | int | Offset of the Image
 | Size | 0x14 | 4 | int | Size of the image
-| Unknown | 0x18 | 4 | int | zlib compressed data start offset
+| Zlib Data Offset | 0x18 | 4 | int | zlib data start offset (only set when using jpeg with alpha data)
 | Unknown | 0x1c | 4 | int | -1 if something failed at runtime
