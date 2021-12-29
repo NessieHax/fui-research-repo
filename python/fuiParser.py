@@ -19,6 +19,7 @@ from fuiDataStructures.fuiTimelineAction import fuiTimelineAction
 from fuiDataStructures.fuiShape import fuiShape
 from fuiDataStructures.fuiShapeComponent import fuiShapeComponent
 from fuiDataStructures.fuiEdittext import fuiEdittext
+from fuiDataStructures.fuiFontName import fuiFontName
 
 @dataclass
 class HeaderInfo:
@@ -45,7 +46,7 @@ class fuiParser:
             "fuiTimelineEventName"  : makeHeaderInfo(self.header.data_counts, 1, 0x40, fuiTimelineEventName),  #! 0x50 | char Name[64]
             "fuiReference"          : makeHeaderInfo(self.header.data_counts, 8, 0x48, fuiReference),  #! 0x6c | fuiObject.eFuiObjectType , char ref_name[64] , unknown value(needs swap)
             "fuiEdittext"           : makeHeaderInfo(self.header.data_counts, 9, 0x138, fuiEdittext), #! 0x70 | unkn int , fuiRect , 1 unkn int, unkn float , fuiRGBA , fuiRect(maybe), 2 unkn int, char html_text_format[0x100 max!], 
-            "fuiFontName"           : makeHeaderInfo(self.header.data_counts, 13, 0x104),#! 0x80 | unkn int , char font_name[64], unkn int , char [0x40], unkn int , char [0x40]
+            "fuiFontName"           : makeHeaderInfo(self.header.data_counts, 13, 0x104, fuiFontName),#! 0x80 | unkn int , char font_name[64], unkn int , char [0x40], unkn int , char [0x40]
             "fuiSymbol"             : makeHeaderInfo(self.header.data_counts, 10, 0x48, fuiSymbol), #! 0x74 | char symbol_name[64] , fuiObject.eFuiObjectType , list index
             "fuiImportAsset"        : makeHeaderInfo(self.header.data_counts, 14, 0x40, fuiImportAsset), #! 0x84 | char asset_name[64]
             "fuiBitmap"             : makeHeaderInfo(self.header.data_counts, 11, 0x20, fuiBitmap), #! 0x78 | fuiObject.eFuiObjectType , unkn int , width(int swapped) , height(int swapped) , unkn int , compressed_image_size(png/jpeg compression)
@@ -113,9 +114,14 @@ class fuiParser:
 
     #! TODO: make this robust | folder deletion
     def clean(self, path:str) -> None:
-        for root, dirs, files in os.walk(path):
-            if dirs: self.clean(dirs)
-            [os.remove(os.path.join(root, file)) for file in files]
+        self.clear_files(path)
+        # for root, dirs, _ in os.walk(path):
+        #     for folder in dirs:
+        #         self.clean(folder)
+        #         os.removedirs(os.path.join(root, folder))
+
+    def clear_files(self, path:str) -> None:
+        [[os.remove(os.path.join(root, file)) for file in files] for root, _, files in os.walk(path)]
     
     def __get_raw_data(self, offset:int, size:int) -> bytearray:
         return self.__raw_data[offset:offset+size]
@@ -176,7 +182,7 @@ class fuiParser:
                 print(f"{evnt}")
                 print("   ",end="")
                 if evnt.obj_type == eFuiObjectType.SHAPE and self.is_valid_index("fuiShape", evnt.index):
-                    print(f"   -> {self.get_shapes()[evnt.index]}")
+                    print(f"-> {self.get_shapes()[evnt.index]}")
                 if evnt.obj_type == eFuiObjectType.REFERENCE:
                     print(f"-> {self.get_references()[evnt.index]}")
                 if evnt.obj_type == eFuiObjectType.TIMELINE:
