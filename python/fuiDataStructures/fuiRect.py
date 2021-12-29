@@ -1,27 +1,31 @@
+from dataclasses import dataclass, field
 
+@dataclass(init=False, repr=False)
 class fuiRect:
-    def __init__(self, x_min:float, x_max:float, y_min:float, y_max:float):
-        self.__rect:dict = {
-            "min_x" : x_min,
-            "max_x" : x_max,
-            "min_y" : y_min,
-            "max_y" : y_max
-           }
+    x:tuple = field(default_factory=tuple)
+    y:tuple = field(default_factory=tuple)
 
-    def get(self) -> dict:
-        return self.__rect
+    def __init__(self, min_x:float, max_x:float, min_y:float, max_y:float):
+        self.x = (min_x, max_x)
+        self.y = (min_y, max_y)
 
     def get_size(self) -> tuple:
-        return (self.get_width(),self.get_height())
+        return (self.get_width(), self.get_height())
 
     def get_width(self) -> float:
-        return self.__rect["max_x"]-self.__rect["min_x"]
+        return self.x[1] - self.x[0]
 
     def get_height(self) -> float:
-        return self.__rect["max_y"]-self.__rect["min_y"]
+        return self.y[1] - self.y[0]
 
-    def __str__(self):  
-        return self.__rect.__str__()
+    def set_x(self, min_x:float, max_x:float) -> None:
+        self.x = (min_x, max_x)
+
+    def set_y(self, min_y:float, max_y:float) -> None:
+        self.y = (min_y, max_y)
 
     def __repr__(self) -> str:
-        return f"{self.get_size()}"
+        return self.get_size().__repr__()
+
+    def __str__(self) -> str:
+        return f"{self.x=} {self.y=}"
