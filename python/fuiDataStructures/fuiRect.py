@@ -2,6 +2,8 @@ from dataclasses import dataclass, field
 
 @dataclass(init=False, repr=False)
 class fuiRect:
+    fmt = "4f"
+
     x:tuple = field(default_factory=tuple)
     y:tuple = field(default_factory=tuple)
 
@@ -23,6 +25,9 @@ class fuiRect:
 
     def set_y(self, min_y:float, max_y:float) -> None:
         self.y = (min_y, max_y)
+
+    def __iter__(self):
+        return iter([*self.x, *self.y])
 
     def __repr__(self) -> str:
         return self.get_size().__repr__()

@@ -1,20 +1,17 @@
+from dataclasses import dataclass, field
 
-
+@dataclass(init=False)
 class fuiMatrix:
-    fmt = "<6f"
+    fmt = "6f"
 
-    def __init__(self, scale_x:float, scale_y:float, rotate_skew0:float, rotate_skew1:float, translae_x:float, translae_y:float):
-        self.matrix:dict = {
-            "Scale" : (scale_x, scale_y),
-            "Rotate_skew" : (rotate_skew0, rotate_skew1),
-            "Translate" : (translae_x, translae_y)
-        }
+    scale:tuple = field(default_factory=tuple)
+    rotate_skrew:tuple = field(default_factory=tuple)
+    translate:tuple = field(default_factory=tuple)
 
-    def get(self) -> dict:
-        return self.matrix
+    def __init__(self, scale_x:float, scale_y:float, rotate_skew0:float, rotate_skew1:float, translate_x:float, translate_y:float):
+        self.scale = (scale_x, scale_y)
+        self.rotate_skrew = (rotate_skew0, rotate_skew1)
+        self.translate = (translate_x, translate_y)
 
-    def __str__(self) -> str:
-        return self.matrix.__str__()
-
-    def __repr__(self) -> str:
-        return self.matrix.__repr__()
+    def __iter__(self):
+        return iter([*self.scale, *self.rotate_skrew, *self.translate])
