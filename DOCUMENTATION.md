@@ -86,12 +86,15 @@ This is Untested just referenced by the .swf file docs!!
 
 
 ## FUI Header
+
+**The FUI file Header is the most crucial part of an fui file it holds infomation for
+allocating memory at runtime, counts of fui Objects and is part of the in-game `fuifile` class**
+
 | Name | Offset | Byte Size | Type | Description |
 | :-:|:-:|:-:|:-:|:-:|
-| Identifier | 0x0 | 4 | char[] | FUI Header Magic (b'\x01IUF') first value (\x01) indecates the version of the fui file
-| Unknow | 0x4 | 4 | int | Unknow Value
+| Signature | 0x0 | 8 | char[] | FUI Header Signature (b'\x01IUF\x00\x00\x00\x00') first value (\x01) indecates the version of the fui file
 | Content Size | 0x8 | 4 | int | Size of the up coming data in the FUI file
-| Swf File Name | 0xc | 0x40 | char[] | Name of the .swf file
+| Swf File Name | 0xc | 0x40 | char[] | Name used to import file
 | fuiTimeline Count | 0x4c | 4 | int | Count of fuiTimeline Elements in a file
 | fuiTimelineEventName Count | 0x50 | 4 | int | Count of fuiTimelineEventName Elements in a file
 | fuiTimelineAction Count | 0x54 | 4 | int | Count of fuiTimelineAction Elements in a file
@@ -104,7 +107,7 @@ This is Untested just referenced by the .swf file docs!!
 | fuiEdittext Count | 0x70 | 4 | int | Count of fuiEdittext Elements in a file
 | fuiSymbol Count | 0x74 | 4 | int | Count of fuiSymbol Elements in a file
 | fuiBitmap Count | 0x78 | 4 | int | Count of fuiBitmap Elements in a file
-| images size | 0x7c | 4 | int | Size of all Images in a file
+| images size | 0x7c | 4 | int | Size of all Images in the file
 | fuiFontName Count | 0x80 | 4 | int | Count of fuiFontName Elements in a file
 | fuiImportAsset Count | 0x84 | 4 | int | Count of fuiImportAsset Elements in a file
 | Frame Size | 0x88 | 0x10 | fuiRect | Size of the frame ?
@@ -195,7 +198,7 @@ This is Untested just referenced by the .swf file docs!!
 | :-:|:-:|:-:|:-:|:-:|
 | Unknown | 0x0 | 4 | int | 
 | rectangle | 0x4 | 0x10 | fuiRect | 
-| Unknown | 0x14 | 4 | int | 
+| Font Id | 0x14 | 4 | int | 
 | Unknown | 0x18 | 4 | float | 
 | Color | 0x1c | 4 | fuiRGBA | 
 | Unknown | 0x20 | 0x18 | int | 6 unknwon int
@@ -207,7 +210,7 @@ TODO: get proper names and types!
 
 | Name | Offset | Byte Size | Type | Description |
 | :-:|:-:|:-:|:-:|:-:|
-| Unknown | 0x0 | 4 | int | 
+| Id | 0x0 | 4 | int | 
 | Font Name | 0x4 | 0x40 | char[] | Name of the Font
 | Unknown | 0x44 | 4 | int | 
 | Unknown | 0x48 | 0x40 | char[] | 
@@ -221,7 +224,7 @@ TODO: get proper names and types!
 | Name | Offset | Byte Size | Type | Description |
 | :-:|:-:|:-:|:-:|:-:|
 | Symbol Name | 0x0 | 0x40 | char[] | Name of the Symbol
-| Object Type | 0x40 | 4 | int | 
+| Object Type | 0x40 | 4 | int | Symbols can only have to types (2 = Timeline, 3 = Bitmap)
 | Index | 0x44 | 4 | int | Index mapped to the object type list
 
 ## fuiImportAsset
