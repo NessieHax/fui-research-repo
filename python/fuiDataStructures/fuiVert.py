@@ -10,3 +10,6 @@ class fuiVert:
 
     def __init__(self, raw_bytes:bytes):
         self.x, self.y = struct.unpack(self.fmt, raw_bytes)
+
+    def pack(self) -> bytearray:
+        return bytearray(struct.pack(self.fmt, self.x, self.y))

@@ -18,3 +18,6 @@ class fuiShape:
         self.component_index = data[1]
         self.component_count = data[2]
         self.scale = fuiRect(data[3], data[4], data[5], data[6])
+
+    def pack(self) -> bytearray:
+        return bytearray(struct.pack(self.fmt, self.unk_0x0, self.component_index, self.component_count, *self.scale))

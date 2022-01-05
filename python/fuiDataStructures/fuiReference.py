@@ -15,3 +15,6 @@ class fuiReference:
         self.symbol_index = data[0]
         self.reference = data[1].decode('UTF-8').strip("\0")
         self.fui_file_index = data[2]
+
+    def pack(self) -> bytearray:
+        return bytearray(struct.pack(self.fmt, self.symbol_index, self.reference.encode('UTF-8'), self.fui_file_index))

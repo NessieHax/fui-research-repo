@@ -21,3 +21,6 @@ class fuiTimelineAction:
         self.unkn_0x2 = data[1]
         self.action_arg0 = data[2].decode('UTF-8').strip("\0")
         self.action_arg1 = data[3].decode('UTF-8').strip("\0")
+
+    def pack(self) -> bytearray:
+        return bytearray(struct.pack(self.fmt, self.action_type, self.unkn_0x2, self.action_arg0.encode("UTF-8"), self.action_arg1.encode("UTF-8")))

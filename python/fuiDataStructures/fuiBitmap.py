@@ -12,7 +12,7 @@ class fuiBitmap:
         JPEG_UNKNOWN:int = 7 #! TODO: find name
         JPEG_WITH_ALPHA_DATA:int = 8
 
-    unkn_0x0:int = field(default_factory=int)
+    symbol_index:int = field(default_factory=int)
     format:int = field(default_factory=int)
     width:int = field(default_factory=int)
     height:int = field(default_factory=int)
@@ -23,7 +23,7 @@ class fuiBitmap:
 
     def __init__(self, raw_bytes:bytes):
         data = struct.unpack(self.fmt, raw_bytes)
-        self.unkn_0x0 = data[0]
+        self.symbol_index = data[0]
         self.format = data[1]
         self.width = data[2]
         self.height = data[3]
@@ -33,4 +33,4 @@ class fuiBitmap:
         self.unkn_0x1c = data[7] #! set to -1 if they was an error at runtime
 
     def pack(self) -> bytearray:
-        return struct.pack(self.fmt, self.unkn_0x0, self.format, self.width, self.height, self.offset, self.size, self.zlib_data_offset, self.unkn_0x1c)
+        return bytearray(struct.pack(self.fmt, self.symbol_index, self.format, self.width, self.height, self.offset, self.size, self.zlib_data_offset, self.unkn_0x1c))

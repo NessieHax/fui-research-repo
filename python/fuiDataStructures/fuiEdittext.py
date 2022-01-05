@@ -5,7 +5,7 @@ from fuiDataStructures.fuiRect import fuiRect
 
 @dataclass(init=False)
 class fuiEdittext:
-    fmt = "<i4fifIb3x3if4?256s"
+    fmt = f"<i{fuiRect.fmt}ifIb3x3if4?256s"
 
     unkn_0x0:int = field(default_factory=int) #! unused!
     rect:fuiRect = field(default_factory=fuiRect)
@@ -39,4 +39,7 @@ class fuiEdittext:
         self.unkn_0x35 = data[14]
         self.unkn_0x36 = data[15]
         self.unkn_0x37 = data[16]
-        self.html_str = data[17].decode('UTF-8', "ignore")
+        self.html_str = data[17] #.decode('UTF-8', "ignore").strip("\0")
+
+    def pack(self) -> bytearray:
+        return bytearray(struct.pack(self.fmt, self.unkn_0x0, *self.rect, self.font_id, self.unkn_0x18, self.color, self.unkn_0x20, self.unkn_0x24, self.unkn_0x28, self.unkn_0x2c, self.unkn_0x30, self.unkn_0x34, self.unkn_0x35, self.unkn_0x36, self.unkn_0x37, self.html_str))

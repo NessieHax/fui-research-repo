@@ -5,7 +5,7 @@ from fuiDataStructures.fuiRect import fuiRect
 
 @dataclass(init=False)
 class fuiTimeline:
-    fmt = "<i4h4f"
+    fmt = f"<i4h{fuiRect.fmt}"
 
     symbol_index:int = field(default_factory=int)
     frame_index:int = field(default_factory=int)
@@ -21,3 +21,6 @@ class fuiTimeline:
         self.action_index = data[3]
         self.action_count = data[4]
         self.rect = fuiRect(data[5], data[6], data[7], data[8])
+
+    def pack(self) -> bytearray:
+        return bytearray(struct.pack(self.fmt, self.symbol_index, self.frame_index, self.frame_count, self.action_index, self.action_count, *self.rect))

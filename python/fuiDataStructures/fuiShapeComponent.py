@@ -6,7 +6,7 @@ from fuiDataStructures.fuiMatrix import fuiMatrix
 
 @dataclass(init=False)
 class fuiShapeComponent:
-    fmt = fuiFillStyle.fmt + "2i"
+    fmt = f"<{fuiFillStyle.fmt}2i"
 
     fillInfo:fuiFillStyle = field(default_factory=fuiFillStyle)
     vert_index:int = field(default_factory=int)
@@ -17,3 +17,6 @@ class fuiShapeComponent:
         self.fillInfo = fuiFillStyle(data[0], data[1], data[2], fuiMatrix(data[3], data[4], data[5], data[6], data[7], data[8]))
         self.vert_index = data[9]
         self.vert_count = data[10]
+
+    def pack(self) -> bytearray:
+        return bytearray(struct.pack(self.fmt, *self.fillInfo, self.vert_index, self.vert_count))

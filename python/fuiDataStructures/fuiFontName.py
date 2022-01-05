@@ -28,3 +28,6 @@ class fuiFontName:
         self.unkn_0xd0 = data[7] #! unused ??
         self.unkn_0xd4 = data[8] #! unused ??
         self.unkn_str2 = data[9].replace(b"\0",b"") #! unused ??
+
+    def pack(self) -> bytearray:
+        return bytearray(struct.pack(self.fmt, self.id, self.font_name.encode('UTF-8'), self.unkn_0x44, self.unkn_str0, self.unkn_0x88, self.unkn_0x8c, self.unkn_str1, self.unkn_0xd0, self.unkn_0xd4, self.unkn_str2))

@@ -14,3 +14,6 @@ class fuiTimelineFrame:
         self.frame_name = data[0].decode('UTF-8').strip("\0")
         self.event_index = data[1]
         self.event_count = data[2]
+
+    def pack(self) -> bytearray:
+        return bytearray(struct.pack(self.fmt, self.frame_name.encode("UTF-8"), self.event_index, self.event_count))
