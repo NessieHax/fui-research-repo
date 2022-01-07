@@ -1,10 +1,11 @@
 from dataclasses import dataclass, field
 import struct
 
+from fuiDataStructures.fuiObject import fuiObject
 from fuiDataStructures.fuiRect import fuiRect
 
 @dataclass(init=False)
-class fuiShape:
+class fuiShape(fuiObject):
     fmt = "<3i4f"
 
     unk_0x0:int = field(default_factory=int)

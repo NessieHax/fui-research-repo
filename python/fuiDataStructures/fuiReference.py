@@ -1,9 +1,10 @@
 from dataclasses import dataclass, field
-# from typing import overload
 import struct
 
+from fuiDataStructures.fuiObject import fuiObject
+
 @dataclass(init=False)
-class fuiReference:
+class fuiReference(fuiObject):
     fmt = "<i64si"
 
     symbol_index:int = field(default_factory=int)

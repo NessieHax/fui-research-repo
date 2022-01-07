@@ -1,8 +1,10 @@
 from dataclasses import dataclass, field
 import struct
 
+from fuiDataStructures.fuiObject import fuiObject
+
 @dataclass(init=False)
-class fuiFontName:
+class fuiFontName(fuiObject):
     fmt = "<i64si64s2i64s2i44s"
 
     id:int = field(default_factory=int)

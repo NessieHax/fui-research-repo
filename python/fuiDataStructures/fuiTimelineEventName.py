@@ -1,8 +1,10 @@
 from dataclasses import dataclass, field
 import struct
 
+from fuiDataStructures.fuiObject import fuiObject
+
 @dataclass(init=False)
-class fuiTimelineEventName:
+class fuiTimelineEventName(fuiObject):
     fmt = "<64s"
 
     name:str = field(default_factory=str)

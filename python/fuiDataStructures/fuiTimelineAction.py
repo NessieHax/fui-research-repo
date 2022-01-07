@@ -1,8 +1,10 @@
 from dataclasses import dataclass, field
 import struct
 
+from fuiDataStructures.fuiObject import fuiObject
+
 @dataclass(init=False)
-class fuiTimelineAction:
+class fuiTimelineAction(fuiObject):
     fmt = "<2h64s64s"
 
     class eAction:

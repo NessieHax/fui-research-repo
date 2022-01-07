@@ -1,8 +1,10 @@
 from dataclasses import dataclass, field
 import struct
 
+from fuiDataStructures.fuiObject import fuiObject
+
 @dataclass(init=False)
-class fuiVert:
+class fuiVert(fuiObject):
     fmt = "<2f"
 
     x:float = field(default_factory=float)

@@ -1,8 +1,9 @@
 from dataclasses import dataclass, field
 import struct
 
+from fuiDataStructures.fuiObject import fuiObject
 @dataclass(init=False)
-class fuiBitmap:
+class fuiBitmap(fuiObject):
     fmt = "<8i"
 
     class eBitmapFormat:

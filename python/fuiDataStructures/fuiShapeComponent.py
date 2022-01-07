@@ -1,11 +1,12 @@
 from dataclasses import dataclass, field
 import struct
 
-from fuiDataStructures.fuiFillStyle import fuiFillStyle
+from fuiDataStructures.fuiObject import fuiObject
 from fuiDataStructures.fuiMatrix import fuiMatrix
+from fuiDataStructures.fuiFillStyle import fuiFillStyle
 
 @dataclass(init=False)
-class fuiShapeComponent:
+class fuiShapeComponent(fuiObject):
     fmt = f"<{fuiFillStyle.fmt}2i"
 
     fillInfo:fuiFillStyle = field(default_factory=fuiFillStyle)

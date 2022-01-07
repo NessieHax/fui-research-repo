@@ -1,9 +1,9 @@
 from dataclasses import dataclass, field
-# from typing import overload
+from fuiDataStructures.fuiObject import fuiObject
 import struct
 
 @dataclass(init=False)
-class fuiImportAsset:
+class fuiImportAsset(fuiObject):
     fmt = "<64s"
 
     import_name:str = field(default_factory=str)

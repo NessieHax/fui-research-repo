@@ -1,8 +1,10 @@
-from dataclasses import dataclass, field
 import struct
+from dataclasses import dataclass, field
+
+from fuiDataStructures.fuiObject import fuiObject
 
 @dataclass(init=False)
-class fuiTimelineFrame:
+class fuiTimelineFrame(fuiObject):
     fmt = "<64s2i"
 
     frame_name:str = field(default_factory=str)

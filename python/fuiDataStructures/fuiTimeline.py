@@ -2,9 +2,10 @@ from dataclasses import dataclass, field
 import struct
 
 from fuiDataStructures.fuiRect import fuiRect
+from fuiDataStructures.fuiObject import fuiObject
 
 @dataclass(init=False)
-class fuiTimeline:
+class fuiTimeline(fuiObject):
     fmt = f"<i4h{fuiRect.fmt}"
 
     symbol_index:int = field(default_factory=int)

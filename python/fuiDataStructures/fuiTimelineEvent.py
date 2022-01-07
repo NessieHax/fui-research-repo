@@ -1,11 +1,12 @@
 from dataclasses import dataclass, field
 import struct
 
+from fuiDataStructures.fuiObject import fuiObject
 from fuiDataStructures.fuiMatrix import fuiMatrix
 from fuiDataStructures.fuiColorTransform import fuiColorTransform
 
 @dataclass(init=False)
-class fuiTimelineEvent:
+class fuiTimelineEvent(fuiObject):
     fmt = f"<4b4h{fuiMatrix.fmt}{fuiColorTransform.fmt}I"
 
     event_type:int = field(default_factory=int)

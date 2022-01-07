@@ -1,3 +1,4 @@
+import abc
 
 class eFuiObjectType:
     STAGE = 0
@@ -8,6 +9,8 @@ class eFuiObjectType:
     EDITTEXT = 5
     CODEGENRECT = 6
 
-class fuiObject:
-    def __init__(self, _type:int):
-        self.type:int = _type
+class fuiObject(metaclass=abc.ABCMeta):
+    @abc.abstractmethod
+    def __init__(self, bytes:bytes) -> None: ...
+    @abc.abstractmethod
+    def pack(self) -> bytearray: ...

@@ -1,10 +1,11 @@
 from dataclasses import dataclass, field
 import struct, re
 
+from fuiDataStructures.fuiObject import fuiObject
 from fuiDataStructures.fuiRect import fuiRect
 
 @dataclass(init=False)
-class fuiEdittext:
+class fuiEdittext(fuiObject):
     fmt = f"<i{fuiRect.fmt}ifIb3x3if4?256s"
 
     unkn_0x0:int = field(default_factory=int) #! unused!
