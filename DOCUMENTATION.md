@@ -224,7 +224,7 @@ TODO: get proper names and types!
 | Name | Offset | Byte Size | Type | Description |
 | :-:|:-:|:-:|:-:|:-:|
 | Symbol Name | 0x0 | 0x40 | char[] | Name of the Symbol
-| Object Type | 0x40 | 4 | int | Symbols can only have to types (2 = Timeline, 3 = Bitmap)
+| Object Type | 0x40 | 4 | int | Symbols can only have two types (2 = Timeline, 3 = Bitmap)
 | Index | 0x44 | 4 | int | Index mapped to the object type list
 
 ## fuiImportAsset
