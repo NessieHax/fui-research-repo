@@ -79,9 +79,9 @@ This is Untested just referenced by the .swf file docs!!
 
 | Name | Offset | Byte Size | Type | Description |
 | :-:|:-:|:-:|:-:|:-:|
-| Unknown | 0x0 | 4 | int | 
+| Type|Operation | 0x0 | 4 | int | wheather to use a bitmap or fill the area with the given color
 | Color | 0x4 | 4 | fuiRGBA | 
-| Unknown | 0x8 | 4 | int | 
+| Bitmap Index | 0x8 | 4 | int | Index of the bitmap to use
 | Matrix | 0xc | 0x18 | fuiMatrix | 
 
 
@@ -92,7 +92,7 @@ allocating memory at runtime, counts of fui Objects and is part of the in-game `
 
 | Name | Offset | Byte Size | Type | Description |
 | :-:|:-:|:-:|:-:|:-:|
-| Signature | 0x0 | 8 | char[] | FUI Header Signature (b'\x01IUF\x00\x00\x00\x00') first value (\x01) indecates the version of the fui file
+| Signature | 0x0 | 8 | char[] | FUI File Signature (b'\x01IUF\x00\x00\x00\x00') where (\x01) indecates the version of the fui file
 | Content Size | 0x8 | 4 | int | Size of the up coming data in the FUI file
 | Swf File Name | 0xc | 0x40 | char[] | Name used to import file
 | fuiTimeline Count | 0x4c | 4 | int | Count of fuiTimeline Elements in a file
@@ -112,10 +112,10 @@ allocating memory at runtime, counts of fui Objects and is part of the in-game `
 | fuiImportAsset Count | 0x84 | 4 | int | Count of fuiImportAsset Elements in a file
 | Frame Size | 0x88 | 0x10 | fuiRect | Size of the frame ?
 
-## FUI Timeline
+## fuiTimeline
 | Name | Offset | Byte Size | Type | Description |
 | :-:|:-:|:-:|:-:|:-:|
-| Unknown | 0x0 | 4 | int | 
+| Symbol Index | 0x0 | 4 | int | 
 | Frame Index | 0x4 | 2 | short | 
 | Frame Count | 0x6 | 2 | short | 
 | Action Index | 0x8 | 2 | short | 
@@ -175,7 +175,7 @@ allocating memory at runtime, counts of fui Objects and is part of the in-game `
 | Unknown | 0x8 | 0x2 | short | 
 | Name Index | 0xa | 0x2 | short | 
 | matrix | 0xc | 0x18 | fuiMatrix | 
-| ColorTransform | 0x24 | 0x20 | fuiColorTransform |
+| ColorTransform | 0x24 | 0x20 | fuiColorTransform | Useless
 | Color | 0x44 | 4 | fuiRGBA |
 
 ## fuiTimelineEventName
