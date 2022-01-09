@@ -18,6 +18,7 @@ from fuiDataStructures.fuiShape import fuiShape
 from fuiDataStructures.fuiShapeComponent import fuiShapeComponent
 from fuiDataStructures.fuiEdittext import fuiEdittext
 from fuiDataStructures.fuiFontName import fuiFontName
+from io_helper import clean
 
 @dataclass
 class HeaderInfo:
@@ -48,7 +49,7 @@ class fuiParser:
             "fuiSymbol"             : makeHeaderInfo(self.__header.data_counts, 10, 0x48, fuiSymbol), #! 0x74
             "fuiImportAsset"        : makeHeaderInfo(self.__header.data_counts, 14, 0x40, fuiImportAsset), #! 0x84
             "fuiBitmap"             : makeHeaderInfo(self.__header.data_counts, 11, 0x20, fuiBitmap), #! 0x78
-            "images_size"           : makeHeaderInfo(self.__header.data_counts, 12, 0x1),  #! 0x7c | size of bytes at the end
+            "images_size"           : makeHeaderInfo(self.__header.data_counts, 12, 0x1),  #! 0x7c | ignored/unused
         }
         #! dictionary containing fuiObject derived classes
         self._parsed_objects:dict = {
@@ -86,14 +87,8 @@ class fuiParser:
         try: os.makedirs(output_path)
         #! clear out directory if already exists
         except OSError:
-            self.clean(output_path)
+            clean(output_path)
         return output_path
-
-    #! TODO: make this robust | folder deletion
-    def clean(self, path:str) -> None:
-        for root, _, files in os.walk(path):
-            for file in files:
-                os.remove(os.path.join(root, file))
 
     def __parse_fui_objects(self) -> None:
         for key,data in self.__HeaderDataInfo.items():
@@ -124,6 +119,7 @@ class fuiParser:
     def get_fonts(self) -> list:
         return self._parsed_objects["fuiFontName"]
 
+    #! EXISTING string editing is not recommented due to not being sure if it could mess up the classes that init with it
     def get_symbols(self) -> list:
         return self._parsed_objects["fuiSymbol"]
 
@@ -175,6 +171,7 @@ class fuiParser:
         start_offset = self.get_start_offset_of("images_size")
         data = self.__get_raw_data(start_offset + bitmap.offset + bitmap.zlib_data_offset, bufsize)
         output = zlib.decompress(data, 0, bufsize)
+        cv2.cvtColor(img, cv2.COLOR_RGB2RGBA)
         for i, col in enumerate(img):
             for j, color in enumerate(col):
                 alpha_data = output[i*len(col)+j]
@@ -190,16 +187,13 @@ class fuiParser:
 
     def __dump_image(self, output_file:str, bitmap:fuiBitmap) -> None:
         data = self.__get_raw_data(self.get_start_offset_of("images_size") + bitmap.offset, bitmap.size)
-        ext = "png" if (bitmap.format == bitmap.eBitmapFormat.JPEG_WITH_ALPHA_DATA or bitmap.format < 6) else "jpeg"
+        ext, write_flags = ("png", [cv2.IMWRITE_PNG_COMPRESSION]) if (bitmap.format == bitmap.eBitmapFormat.JPEG_WITH_ALPHA_DATA or bitmap.format < 6) else ("jpeg", [cv2.IMWRITE_JPEG_QUALITY])
         filename = f"{output_file}.{ext}"
         print("Dumping:", filename[len(os.getcwd()):])
         img = self.__decode_image(data)
-        #! TODO: clean up !!
-        #!+----------------------------------------+
-        final_image = cv2.cvtColor(img, cv2.COLOR_RGB2RGBA if bitmap.format > 5 else cv2.COLOR_BGRA2RGBA) #! no conversion needed for eBitmapFormat.JPEG_NO_ALPHA_DATA
+
+        final_image = cv2.cvtColor(img, cv2.COLOR_BGRA2RGBA) if bitmap.format < 5 else img
         if bitmap.format == bitmap.eBitmapFormat.JPEG_WITH_ALPHA_DATA and bitmap.zlib_data_offset > 0: self.__insert_zlib_alpha_channel_data(bitmap, final_image)
-        write_flags = [cv2.IMWRITE_PNG_COMPRESSION] if ext == "png" else [cv2.IMWRITE_JPEG_QUALITY]
-        #!+----------------------------------------+
 
         cv2.imwrite(filename, final_image, write_flags)
 
