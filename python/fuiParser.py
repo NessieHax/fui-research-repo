@@ -1,4 +1,5 @@
 import struct, os, cv2, numpy, zlib
+from typing import Optional
 from dataclasses import dataclass, field
 from collections.abc import Callable
 
@@ -217,6 +218,30 @@ class fuiParser:
             return
         output_path = self.validate_folder_dest(output_path)
         [self.__dump_image(os.path.join(output_path, f"image_{i}"), bitmap) for i,bitmap in enumerate(self.get_bitmaps())]
+
+    def replace_bitmap(self, index:int, img_data:bytes, size:Optional[tuple], img_type:fuiBitmap.eBitmapFormat = fuiBitmap.eBitmapFormat.PNG_WITH_ALPHA_DATA) -> None:
+        if not self.is_valid_index("fuiBitmap", index):
+            print("Invalid Index")
+            return
+
+        target_bitmap:fuiBitmap = self.get_bitmaps()[index]
+        if size is not None:
+            target_bitmap.width, target_bitmap.height = size
+
+        old_img_size = target_bitmap.size
+        new_img_size = len(img_data)
+
+        offset_diff = old_img_size - new_img_size
+        print("old", old_img_size)
+        print("new", new_img_size)
+        print(offset_diff)
+        target_bitmap.size = new_img_size
+        self._parsed_objects["images"][index] = img_data
+        
+        for bitmap in self.get_bitmaps()[index+1:]:
+            bitmap.offset += offset_diff
+
+        self.__header.content_size += offset_diff
 
     def get_start_offset_of(self, section_name:str) -> int:
         if section_name not in self.__HeaderDataInfo.keys() or self.__HeaderDataInfo[section_name].count == 0: return -1
