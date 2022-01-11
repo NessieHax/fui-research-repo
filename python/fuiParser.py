@@ -165,14 +165,13 @@ class fuiParser:
         return cv2.imdecode(data, read_flags)
 
     def __insert_zlib_alpha_channel_data(self, bitmap:fuiBitmap, img:numpy.ndarray) -> None:
-        if bitmap.zlib_data_offset == 0:
-            print("No zlib data offset was provided")
+        if bitmap.zlib_data_start == 0:
+            print("No zlib data size was provided")
             return
-        bufsize = bitmap.size - bitmap.zlib_data_offset
+        bufsize = bitmap.size - bitmap.zlib_data_start
         start_offset = self.get_start_offset_of("images_size")
-        data = self.__get_raw_data(start_offset + bitmap.offset + bitmap.zlib_data_offset, bufsize)
+        data = self.__get_raw_data(start_offset + bitmap.offset + bitmap.zlib_data_start, bufsize)
         output = zlib.decompress(data, 0, bufsize)
-        cv2.cvtColor(img, cv2.COLOR_RGB2RGBA)
         for i, col in enumerate(img):
             for j, color in enumerate(col):
                 alpha_data = output[i*len(col)+j]

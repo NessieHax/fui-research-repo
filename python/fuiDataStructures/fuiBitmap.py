@@ -19,7 +19,7 @@ class fuiBitmap(fuiObject):
     height:int = field(default_factory=int)
     offset:int = field(default_factory=int)
     size:int = field(default_factory=int)
-    zlib_data_offset:int = field(default_factory=int)
+    zlib_data_start:int = field(default_factory=int)
     unkn_0x1c:int = field(default_factory=int)
 
     def __init__(self, raw_bytes:bytes):
@@ -30,8 +30,8 @@ class fuiBitmap(fuiObject):
         self.height = data[3]
         self.offset = data[4]
         self.size = data[5]
-        self.zlib_data_offset = data[6]
+        self.zlib_data_start = data[6]
         self.unkn_0x1c = data[7] #! set to -1 if they was an error at runtime
 
     def pack(self) -> bytearray:
-        return bytearray(struct.pack(self.fmt, self.symbol_index, self.format, self.width, self.height, self.offset, self.size, self.zlib_data_offset, self.unkn_0x1c))
+        return bytearray(struct.pack(self.fmt, self.symbol_index, self.format, self.width, self.height, self.offset, self.size, self.zlib_data_start, self.unkn_0x1c))
