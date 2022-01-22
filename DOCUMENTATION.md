@@ -20,7 +20,7 @@ The following Table gives you Important information about each structure that ca
 | fuiEdittext | 0x138 | 
 | fuiFontName | 0x104 | 
 | fuiSymbol | 0x48 | Defined Symbols with Name and Object type (entry point for objects used in-game)
-| fuiImportAsset | 0x40 | Assests Imports form other .swf/.fui files
+| fuiImportAsset | 0x40 | file name to import references from
 | fuiBitmap | 0x20 | Information about an Image contained in the file
 
 ### Used structures in an FUI element
@@ -75,11 +75,10 @@ This is Untested just referenced by the .swf file docs!!\
 | AlphaAddTerm | 0x1c | 4 | float | 
 
 ## fuiFillStyle
-This is Untested just referenced by the .swf file docs!!
 
 | Name | Offset | Byte Size | Type | Description |
 | :-:|:-:|:-:|:-:|:-:|
-| Type|Operation | 0x0 | 4 | int | wheather to use a bitmap or fill the area with the given color
+| Type|Operation | 0x0 | 4 | int | wheather to use a bitmap or fill an area with the given color
 | Color | 0x4 | 4 | fuiRGBA | 
 | Bitmap Index | 0x8 | 4 | int | Index of the bitmap to use
 | Matrix | 0xc | 0x18 | fuiMatrix | 
