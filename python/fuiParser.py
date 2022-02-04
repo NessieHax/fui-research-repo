@@ -1,4 +1,4 @@
-import struct, os, cv2, numpy, zlib
+import struct, os, cv2
 from typing import Optional
 from dataclasses import dataclass, field
 from collections.abc import Callable
@@ -19,7 +19,8 @@ from fuiDataStructures.fuiShape import fuiShape
 from fuiDataStructures.fuiShapeComponent import fuiShapeComponent
 from fuiDataStructures.fuiEdittext import fuiEdittext
 from fuiDataStructures.fuiFontName import fuiFontName
-from io_helper import clean
+from io_helper import clean, print_err
+from fuiUtil import get_zlib_buf_size, insert_zlib_alpha_channel_data, decode_image, swap_image_data
 
 @dataclass
 class HeaderInfo:
@@ -68,7 +69,7 @@ class fuiParser:
             "fuiSymbol" : [],
             "fuiImportAsset" : [],
             "fuiBitmap" : [],
-            "images" : []
+            "images" : [] # list[bytes | bytearray]
         }
         self.__parse_fui_objects()
 
@@ -95,24 +96,26 @@ class fuiParser:
         for key,data in self.__HeaderDataInfo.items():
             if data.repr_cls is None: continue
             self.__parse(key, self._parsed_objects[key])
-        for bitmap in self.get_bitmaps():
-            offset = self.get_start_offset_of("images_size")
-            self._parsed_objects["images"].append(self.__get_raw_data(offset + bitmap.offset, bitmap.size))
+        offset = self.get_start_offset_of("images_size")
+        self._parsed_objects["images"] = [self.__get_raw_data(offset + bitmap.offset, bitmap.size) for bitmap in self.get_bitmaps()]
 
     def __parse(self, section_name:str, container:list) -> None:
         cls = self.__HeaderDataInfo[section_name].repr_cls
-        if not self.validate_class_size(section_name, cls): raise Exception("Class does not contain the required size!")
+        if not self.validate_class_size(section_name, cls): print_err("Class does not contain the required size!")
         for i in range(self.__HeaderDataInfo[section_name].count):
             offset = self.__get_indexed_offset(section_name, i)
             data_size = self.__HeaderDataInfo[section_name].element_size
             container.append(cls(self.__get_raw_data(offset, data_size)))
  
     def __get_raw_data(self, offset:int, size:int) -> bytearray:
-        return self.__raw_data[offset:offset+size]
+        return bytearray(self.__raw_data[offset:offset+size])
 
     def __get_indexed_offset(self, section_name:str, index:int = 0) -> int:
-        if not self.is_valid_index(section_name, index): raise Exception("Index out of range")
+        if not self.is_valid_index(section_name, index): print_err("Index out of range")
         return self.get_start_offset_of(section_name) + index * self.__HeaderDataInfo[section_name].element_size
+
+    def get_header(self) -> fuiHeader:
+        return self.__header
 
     def get_imported_assets(self) -> list:
         return self._parsed_objects["fuiImportAsset"]
@@ -160,47 +163,28 @@ class fuiParser:
     def contains_images(self) -> bool:
         return len(self.get_bitmaps()) > 0
 
-    def __decode_image(self, raw_data:bytes | bytearray, read_flags:int = cv2.IMREAD_ANYCOLOR | cv2.IMREAD_UNCHANGED) -> numpy.ndarray:
-        data = numpy.asarray(bytearray(raw_data), dtype=numpy.uint8)
-        return cv2.imdecode(data, read_flags)
-
-    def __insert_zlib_alpha_channel_data(self, bitmap:fuiBitmap, img:numpy.ndarray) -> None:
-        if bitmap.zlib_data_start == 0:
-            print("No zlib data size was provided")
-            return
-        bufsize = bitmap.size - bitmap.zlib_data_start
-        start_offset = self.get_start_offset_of("images_size")
-        data = self.__get_raw_data(start_offset + bitmap.offset + bitmap.zlib_data_start, bufsize)
-        output = zlib.decompress(data, 0, bufsize)
-        for i, col in enumerate(img):
-            for j, color in enumerate(col):
-                alpha_data = output[i*len(col)+j]
-                if alpha_data == 0:
-                    color[:4] = 0
-                    continue
-                maxval = 0xff
-                color[3] = alpha_data
-                x = color[:3] / (alpha_data / maxval)
-                x = numpy.nan_to_num(x, nan=maxval, posinf=maxval, neginf=maxval)
-                a = numpy.where(maxval-x<=0.0, 255.0, x)
-                color[:3] = a.astype(numpy.uint8)
-
     def __dump_image(self, output_file:str, bitmap:fuiBitmap) -> None:
-        data = self.__get_raw_data(self.get_start_offset_of("images_size") + bitmap.offset, bitmap.size)
+        offset = self.get_start_offset_of("images_size") + bitmap.offset
+        data = self.__get_raw_data(offset, bitmap.size)
         ext, write_flags = ("png", [cv2.IMWRITE_PNG_COMPRESSION]) if (bitmap.format == bitmap.eBitmapFormat.JPEG_WITH_ALPHA_DATA or bitmap.format < 6) else ("jpeg", [cv2.IMWRITE_JPEG_QUALITY])
         filename = f"{output_file}.{ext}"
         print("Dumping:", filename[len(os.getcwd()):])
-        img = self.__decode_image(data)
-
-        final_image = cv2.cvtColor(img, cv2.COLOR_BGRA2RGBA) if bitmap.format < 5 else img
-        if bitmap.format == bitmap.eBitmapFormat.JPEG_WITH_ALPHA_DATA and bitmap.zlib_data_offset > 0: self.__insert_zlib_alpha_channel_data(bitmap, final_image)
+        img = decode_image(data)
+        final_image = img
+        if bitmap.format == fuiBitmap.eBitmapFormat.JPEG_WITH_ALPHA_DATA:
+            final_image = cv2.cvtColor(final_image, cv2.COLOR_RGB2RGBA) #! create alpha channel
+            zlib_buf_sz = get_zlib_buf_size(bitmap)
+            zlib_data = self.__get_raw_data(offset + bitmap.zlib_data_start, zlib_buf_sz)
+            final_image = insert_zlib_alpha_channel_data(final_image, zlib_data, zlib_buf_sz)
+        else:
+            final_image = swap_image_data(img, "fui_out")
 
         cv2.imwrite(filename, final_image, write_flags)
 
     def dump_images(self, output_path:str) -> None:
         bitmaps = self.get_bitmaps()
         if not self.contains_images():
-            print("This fui file does not contain any images")
+            print_err("This fui file does not contain any images")
             return
         output_path = self.validate_folder_dest(output_path)
         count = 0
@@ -213,34 +197,42 @@ class fuiParser:
 
     def dump_raw(self, output_path:str) -> None:
         if not self.contains_images():
-            print("This fui file does not contain any images")
+            print_err("This fui file does not contain any images")
             return
         output_path = self.validate_folder_dest(output_path)
-        [self.__dump_image(os.path.join(output_path, f"image_{i}"), bitmap) for i,bitmap in enumerate(self.get_bitmaps())]
+        [self.__dump_image(os.path.join(output_path, f"image_{i}"), bitmap) for i, bitmap in enumerate(self.get_bitmaps())]
 
-    def replace_bitmap(self, index:int, img_data:bytes, size:Optional[tuple], img_type:fuiBitmap.eBitmapFormat = fuiBitmap.eBitmapFormat.PNG_WITH_ALPHA_DATA) -> None:
+    def replace_bitmap(self, index:int, img_data:bytes, img_type:fuiBitmap.eBitmapFormat = fuiBitmap.eBitmapFormat.PNG_WITH_ALPHA_DATA) -> None:
         if not self.is_valid_index("fuiBitmap", index):
-            print("Invalid Index")
+            print_err("Invalid Index")
             return
 
         target_bitmap:fuiBitmap = self.get_bitmaps()[index]
-        if size is not None:
-            target_bitmap.width, target_bitmap.height = size
 
+        tmp_img_data = decode_image(img_data)
+        if img_type == fuiBitmap.eBitmapFormat.PNG_NO_ALPHA_DATA or img_type == fuiBitmap.eBitmapFormat.PNG_WITH_ALPHA_DATA:
+            tmp_img_data = swap_image_data(tmp_img_data)
+        final_img_data:bytearray = bytearray(cv2.imencode(".png", tmp_img_data)[1].tobytes())
+
+        height, width = tmp_img_data.shape[:2]
+        target_bitmap.width = width
+        target_bitmap.height = height
         old_img_size = target_bitmap.size
-        new_img_size = len(img_data)
+        new_img_size = len(final_img_data)
 
-        offset_diff = old_img_size - new_img_size
+        offset_diff = new_img_size - old_img_size
         print("old", old_img_size)
         print("new", new_img_size)
         print(offset_diff)
         target_bitmap.size = new_img_size
-        self._parsed_objects["images"][index] = img_data
+
+        self._parsed_objects["images"][index] = final_img_data
         
         for bitmap in self.get_bitmaps()[index+1:]:
             bitmap.offset += offset_diff
 
         self.__header.content_size += offset_diff
+        print(f"Successfully changed '{self.get_symbols()[bitmap.symbol_index]}'")
 
     def get_start_offset_of(self, section_name:str) -> int:
         if section_name not in self.__HeaderDataInfo.keys() or self.__HeaderDataInfo[section_name].count == 0: return -1
@@ -250,7 +242,7 @@ class fuiParser:
             offset += header_info.section_size
         return -1
 
-    def find(self, name:str) -> list[fuiBitmap] | fuiBitmap | list[fuiTimeline] | fuiTimeline | None:
+    def find(self, name:str) -> list[fuiBitmap | fuiTimeline] | None:
         results:tuple = ()
         for symbol in self.get_symbols():
             if name.lower() in symbol.name.lower():
@@ -258,8 +250,8 @@ class fuiParser:
                 data = caller()[symbol.index]
                 print(f"{symbol.name} | Offset: {self.__get_indexed_offset(data_type, symbol.index)} | {data}")
                 results += (data,)
-        if len(results) > 0: return results if len(results) > 1 else results[0]
-        print(f"Could not find Symbol named '{name}'")
+        if len(results) > 0: return results
+        print_err(f"Could not find Symbol named '{name}'")
         return None
 
     def __str__(self) -> str:
