@@ -6,7 +6,12 @@
 # python cache
 /**/__pycache__
 
+# VS Code & Visual Studio cofig folder
+/**/.vs
+/**/.vscode
+
 # misc
-*.bin
-/output
+/**/*.bin
+/**/*.d
+/dump_output
 /Media
