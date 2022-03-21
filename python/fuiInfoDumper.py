@@ -61,8 +61,7 @@ def main():
     if not parsedagrs.fuiFile.endswith(".fui"): raise Exception("Not a fui file")
     output_path = os.path.abspath(parsedagrs.output)
 
-    with open(parsedagrs.fuiFile,"rb") as fui:
-        parser = fuiParser(fui.read())
+    parser = fuiParser(parsedagrs.fuiFile)
 
     print(parser)
     # print(f"Imported Assets: {parser.get_imported_assets()}")

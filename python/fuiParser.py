@@ -34,9 +34,11 @@ def makeHeaderInfo(data:list , index:int, element_size:int, cls:fuiObject = None
 class FUIParserError(Exception): ...
 
 class fuiParser:
-    def __init__(self, raw_fui_file:bytes):
-        self.__header:fuiHeader = fuiHeader(raw_fui_file[:fuiHeader.header_size])
-        self.__raw_data:bytes = raw_fui_file
+    def __init__(self, file_name:str):
+        if not file_name.endswith(".fui"): raise FUIParserError("Not a fui file")
+        with open(file_name, "rb") as fui_fd:
+            self.__fui_data = fui_fd.read()
+        self.__header:fuiHeader = fuiHeader(self.__fui_data[:fuiHeader.header_size])
         self.__HeaderDataInfo:dict = {
             "fuiTimeline"           : makeHeaderInfo(self.__header.data_counts, 0, 0x1c, fuiTimeline), #! 0x4c
             "fuiTimelineAction"     : makeHeaderInfo(self.__header.data_counts, 2, 0x84, fuiTimelineAction), #! 0x54
@@ -175,7 +177,7 @@ class fuiParser:
             zlib_buf_sz = get_zlib_buf_size(bitmap)
             zlib_data = self.__get_raw_data(offset + bitmap.zlib_data_start, zlib_buf_sz)
             final_image = insert_zlib_alpha_channel_data(final_image, zlib_data, zlib_buf_sz)
-        else:
+        elif bitmap.format < 6:
             final_image = swap_image_data(img, "fui_out")
 
         cv2.imwrite(filename, final_image, write_flags)
