@@ -10,6 +10,7 @@ class eFuiObjectType:
     CODEGENRECT = 6
 
 class fuiObject(metaclass=abc.ABCMeta):
+    fmt:str
     @abc.abstractmethod
     def __init__(self, bytes:bytes) -> None: ...
     @abc.abstractmethod
