@@ -1,8 +1,7 @@
 import struct, os, cv2
-from typing import Optional
 from dataclasses import dataclass, field
-from collections.abc import Callable
 
+from fuiDataStructures.fuiObject import fuiObject
 from fuiDataStructures.fuiHeader import fuiHeader
 from fuiDataStructures.fuiObject import eFuiObjectType
 from fuiDataStructures.fuiImportAsset import fuiImportAsset
@@ -19,7 +18,6 @@ from fuiDataStructures.fuiShape import fuiShape
 from fuiDataStructures.fuiShapeComponent import fuiShapeComponent
 from fuiDataStructures.fuiEdittext import fuiEdittext
 from fuiDataStructures.fuiFontName import fuiFontName
-from io_helper import clean, print_err
 from fuiUtil import get_zlib_buf_size, insert_zlib_alpha_channel_data, decode_image, swap_image_data
 
 @dataclass
@@ -27,10 +25,13 @@ class HeaderInfo:
     count:int = field(default_factory=int)
     element_size:int = field(default_factory=int)
     section_size:int = field(default_factory=int)
-    repr_cls:Callable[[],None] = field(repr=False,default_factory=Callable[[],None])
+    repr_cls:fuiObject = field(repr=False, default_factory=fuiObject)
 
-def makeHeaderInfo(data:list , index:int, element_size:int, cls = None) -> HeaderInfo:
+def makeHeaderInfo(data:list , index:int, element_size:int, cls:fuiObject = None) -> HeaderInfo:
     return HeaderInfo(data[index], element_size, data[index]*element_size, cls)
+
+
+class FUIParserError(Exception): ...
 
 class fuiParser:
     def __init__(self, raw_fui_file:bytes):
@@ -73,7 +74,7 @@ class fuiParser:
         }
         self.__parse_fui_objects()
 
-    def validate_class_size(self, section_name:str, cls) -> bool:
+    def validate_class_size(self, section_name:str, cls:fuiObject) -> bool:
         return self.__HeaderDataInfo[section_name].element_size == struct.calcsize(cls.fmt)
 
     def is_valid_index(self, section_name:str, index:int) -> bool:
@@ -86,10 +87,8 @@ class fuiParser:
 
     def validate_folder_dest(self, output_path:str) -> str:
         output_path = os.path.join(output_path, f"{self.__header.import_name.replace('.swf','')}")
-        try: os.makedirs(output_path)
-        #! clear out directory if already exists
-        except OSError:
-            clean(output_path)
+        if not os.path.exists(output_path):
+            os.makedirs(output_path)
         return output_path
 
     def __parse_fui_objects(self) -> None:
@@ -101,17 +100,17 @@ class fuiParser:
 
     def __parse(self, section_name:str, container:list) -> None:
         cls = self.__HeaderDataInfo[section_name].repr_cls
-        if not self.validate_class_size(section_name, cls): print_err("Class does not contain the required size!")
+        if not self.validate_class_size(section_name, cls): raise FUIParserError("Class does not contain the required size!")
         for i in range(self.__HeaderDataInfo[section_name].count):
             offset = self.__get_indexed_offset(section_name, i)
             data_size = self.__HeaderDataInfo[section_name].element_size
             container.append(cls(self.__get_raw_data(offset, data_size)))
  
     def __get_raw_data(self, offset:int, size:int) -> bytearray:
-        return bytearray(self.__raw_data[offset:offset+size])
+        return bytearray(self.__fui_data[offset:offset+size])
 
     def __get_indexed_offset(self, section_name:str, index:int = 0) -> int:
-        if not self.is_valid_index(section_name, index): print_err("Index out of range")
+        if not self.is_valid_index(section_name, index): raise IndexError("Index out of range")
         return self.get_start_offset_of(section_name) + index * self.__HeaderDataInfo[section_name].element_size
 
     def get_header(self) -> fuiHeader:
@@ -184,7 +183,7 @@ class fuiParser:
     def dump_images(self, output_path:str) -> None:
         bitmaps = self.get_bitmaps()
         if not self.contains_images():
-            print_err("This fui file does not contain any images")
+            print("This fui file does not contain any images")
             return
         output_path = self.validate_folder_dest(output_path)
         count = 0
@@ -197,15 +196,14 @@ class fuiParser:
 
     def dump_raw(self, output_path:str) -> None:
         if not self.contains_images():
-            print_err("This fui file does not contain any images")
+            print("This fui file does not contain any images")
             return
         output_path = self.validate_folder_dest(output_path)
         [self.__dump_image(os.path.join(output_path, f"image_{i}"), bitmap) for i, bitmap in enumerate(self.get_bitmaps())]
 
     def replace_bitmap(self, index:int, img_data:bytes, img_type:fuiBitmap.eBitmapFormat = fuiBitmap.eBitmapFormat.PNG_WITH_ALPHA_DATA) -> None:
         if not self.is_valid_index("fuiBitmap", index):
-            print_err("Invalid Index")
-            return
+            raise IndexError("Invalid Index")
 
         target_bitmap:fuiBitmap = self.get_bitmaps()[index]
 
@@ -242,7 +240,7 @@ class fuiParser:
             offset += header_info.section_size
         return -1
 
-    def find(self, name:str) -> list[fuiBitmap | fuiTimeline] | None:
+    def find(self, name:str) -> tuple[fuiBitmap | fuiTimeline] | None:
         results:tuple = ()
         for symbol in self.get_symbols():
             if name.lower() in symbol.name.lower():
@@ -251,8 +249,7 @@ class fuiParser:
                 print(f"{symbol.name} | Offset: {self.__get_indexed_offset(data_type, symbol.index)} | {data}")
                 results += (data,)
         if len(results) > 0: return results
-        print_err(f"Could not find Symbol named '{name}'")
-        return None
+        raise FUIParserError(f"Could not find Symbol named '{name}'")
 
     def __str__(self) -> str:
        return self.__header.__str__()
