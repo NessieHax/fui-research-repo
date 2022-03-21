@@ -78,10 +78,10 @@ This is Untested just referenced by the .swf file docs!!\
 
 | Name | Offset | Byte Size | Type | Description |
 | :-:|:-:|:-:|:-:|:-:|
-| Type|Operation | 0x0 | 4 | int | wheather to use a bitmap or fill an area with the given color
-| Color | 0x4 | 4 | fuiRGBA | 
+| Type/Operation | 0x0 | 4 | int | wheather to use a bitmap or fill area with a given color
+| Color | 0x4 | 4 | fuiRGBA | color to use when filling area
 | Bitmap Index | 0x8 | 4 | int | Index of the bitmap to use
-| Matrix | 0xc | 0x18 | fuiMatrix | 
+| Matrix | 0xc | 0x18 | fuiMatrix | matrix for area ?
 
 
 ## FUI Header
@@ -114,11 +114,11 @@ allocating memory at runtime, counts of fui Objects and is part of the in-game `
 ## fuiTimeline
 | Name | Offset | Byte Size | Type | Description |
 | :-:|:-:|:-:|:-:|:-:|
-| Symbol Index | 0x0 | 4 | int | 
-| Frame Index | 0x4 | 2 | short | 
-| Frame Count | 0x6 | 2 | short | 
-| Action Index | 0x8 | 2 | short | 
-| Action Count | 0xa | 2 | short | 
+| Symbol Index | 0x0 | 4 | int | Index of the symbol to use. -1 if it has no symbol linked.
+| Frame Index | 0x4 | 2 | short | Index in fuiTimelineFrame array
+| Frame Count | 0x6 | 2 | short | Count of how many fuiTimelineFrame's are used
+| Action Index | 0x8 | 2 | short | Index in fuiTimelineAction array
+| Action Count | 0xa | 2 | short | Count of how many fuiTimelineAction's are used
 | Rectangle | 0xc | 0x10 | fuiRect | Unknown fuiRect
 
 ## fuiTimelineAction
@@ -201,7 +201,7 @@ allocating memory at runtime, counts of fui Objects and is part of the in-game `
 | Unknown | 0x18 | 4 | float | 
 | Color | 0x1c | 4 | fuiRGBA | 
 | Unknown | 0x20 | 0x18 | int | 6 unknwon int
-| html text format | 0x38 | 0x100 | char[] | 
+| Html text | 0x38 | 0x100 | char[] | 
 
 ## fuiFontName
 
@@ -234,15 +234,15 @@ TODO: get proper names and types!
 
 ## fuiBitmap
 
-**Important**: png file use BGRA instead of RGBA!
+**Important**: _PNG files use BGRA instead of RGBA!_
 
 | Name | Offset | Byte Size | Type | Description |
 | :-:|:-:|:-:|:-:|:-:|
 | Unknown | 0x0 | 4 | int | Could be some kind of id
 | Image Format | 0x4 | 4 | int | Format to use ([see fuiBitmap](./python/fuiDataStructures/fuiBitmap.py))
-| Width | 0x8 | 4 | int | Width of the given Image(png file crash upon changing | jpegs get visual errors in-game)
-| Height | 0xc | 4 | int | Height of the given Image(png file crash upon changing | jpegs get visual errors in-game)
+| Width | 0x8 | 4 | int | Width of the given Image (possiblly used for memory allocation)
+| Height | 0xc | 4 | int | Height of the given Image (possiblly used for memory allocation)
 | Offset | 0x10 | 4 | int | Offset of the Image
 | Size | 0x14 | 4 | int | Size of the image
-| Zlib Data Offset | 0x18 | 4 | int | zlib data start offset (only set when using jpeg with alpha data)
+| Zlib Data Offset | 0x18 | 4 | int | zlib data start offset (only set when using `JPEG_WITH_ALPHA_DATA`)
 | Unknown | 0x1c | 4 | int | -1 if something failed at runtime
