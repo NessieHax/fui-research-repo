@@ -51,42 +51,50 @@ def main():
     argvparser.add_argument("-d", "--dump", action="store_true", default=False, help="Dumps images(with symbol name) into a folder")
     # argvparser.add_argument("-b", "--build", action="store_true", default=False, help="(Re)Builds the fui file")
     argvparser.add_argument("-tree", action="store_true", default=False, help="DEBUG")
+    argvparser.add_argument("-l", "--list", action="store", type=str, metavar="fuiObjectType", default=None, help="Lists a given fuiObject list contained in the fui")
     argvparser.add_argument("-o", "--output", action="store", type=str, default="dump_output", help="sets the output path")
     argvparser.add_argument("-b-out", "--build-output", action="store", type=str, default="mod_output", help="sets the output path for the building process")
     argvparser.add_argument("-r", "--replace", metavar=("Bitmap_name", "image_filename"), type=str, nargs=2, action="append", help="Replaces given index with the passed image")
     argvparser.add_argument("-rd","--raw-dump", action="store_true", default=False, help="Dumps all images into a folder")
     argvparser.add_argument("-f","--find", metavar="name", type=str, action="store", help="Prints out fui Element's that contain [name]")
     argvparser.add_argument("-frefs","--find-references", dest="find_ref", metavar="folder", type=str, action="store", help="Tries to find references contained in Import files")
-    parsedagrs = argvparser.parse_args()
-    if not parsedagrs.fuiFile.endswith(".fui"): raise Exception("Not a fui file")
-    output_path = os.path.abspath(parsedagrs.output)
+    parsedargs = argvparser.parse_args()
+    if not parsedargs.fuiFile.endswith(".fui"): raise Exception("Not a fui file")
+    output_path = os.path.abspath(parsedargs.output)
 
-    parser = fuiParser(parsedagrs.fuiFile)
-
+    parser = fuiParser(parsedargs.fuiFile)
     print(parser)
-    # print(f"Imported Assets: {parser.get_imported_assets()}")
 
-    if parsedagrs.dump:
+    if parsedargs.dump:
         parser.dump_images(output_path)
-    elif parsedagrs.raw_dump:
+    elif parsedargs.raw_dump:
         parser.dump_raw(output_path)
-    if parsedagrs.find:
-        parser.find(parsedagrs.find)
+    if parsedargs.find:
+        parser.find(parsedargs.find)
 
-    if parsedagrs.symbols:
+    if parsedargs.list is not None:
+        if parsedargs.list in parser._parsed_objects.keys():
+            print(f"-----{parsedargs.list}-----")
+            [print(val) for val in parser._parsed_objects[parsedargs.list]]
+            print("File offset:", parser.get_start_offset_of(parsedargs.list))
+            print(f"-----{'-'*len(parsedargs.list)}-----\n")
+        else:
+            print(f"Invalid argument passed\nvalid arguments:\n{parser._parsed_objects.keys()}")
+
+    if parsedargs.symbols:
         print("Symbols:")
         for symbol in parser.get_symbols():
             print("Type:", symbol.obj_type, "Name:", symbol.name)
 
-    if parsedagrs.tree:
+    if parsedargs.tree:
         print_all_timeline_trees(parser)
 
     #! this is disgusting
-    if parsedagrs.find_ref and os.path.exists(parsedagrs.find_ref) and len(parser.get_imported_assets()) > 0:
+    if parsedargs.find_ref and os.path.exists(parsedargs.find_ref) and len(parser.get_imported_assets()) > 0:
         fui_parser = []
-        for file in os.listdir(parsedagrs.find_ref):
+        for file in os.listdir(parsedargs.find_ref):
             if file.endswith(".fui"):
-                abs_path = os.path.join(os.path.abspath(parsedagrs.find_ref),file)
+                abs_path = os.path.join(os.path.abspath(parsedargs.find_ref),file)
                 with open(abs_path, "rb") as fui:
                     fui_parser.append((file,fuiParser(fui.read())))
 
@@ -95,8 +103,8 @@ def main():
                 if cur_parser.header.import_name == import_file.import_name:
                     print(f"Found import name({import_file.import_name}) in {file_name}")
 
-    if parsedagrs.replace:
-        for replace_arg in parsedagrs.replace:
+    if parsedargs.replace:
+        for replace_arg in parsedargs.replace:
             name = replace_arg[0]
             img_filename = os.path.abspath(replace_arg[1])
             index = -1
