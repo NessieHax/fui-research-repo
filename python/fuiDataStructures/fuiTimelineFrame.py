@@ -7,9 +7,9 @@ from fuiDataStructures.fuiObject import fuiObject
 class fuiTimelineFrame(fuiObject):
     fmt = "<64s2i"
 
-    frame_name:str = field(default_factory=str)
-    event_index:int = field(default_factory=int)
-    event_count:int = field(default_factory=int)
+    frame_name:str
+    event_index:int
+    event_count:int
 
     def __init__(self, raw_bytes:bytes):
         data = struct.unpack(self.fmt, raw_bytes)
@@ -17,5 +17,5 @@ class fuiTimelineFrame(fuiObject):
         self.event_index = data[1]
         self.event_count = data[2]
 
-    def pack(self) -> bytearray:
-        return bytearray(struct.pack(self.fmt, self.frame_name.encode("UTF-8"), self.event_index, self.event_count))
+    def pack(self) -> bytes:
+        return struct.pack(self.fmt, self.frame_name.encode("UTF-8"), self.event_index, self.event_count)

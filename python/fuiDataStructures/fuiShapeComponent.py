@@ -10,8 +10,8 @@ class fuiShapeComponent(fuiObject):
     fmt = f"<{fuiFillStyle.fmt}2i"
 
     fillInfo:fuiFillStyle = field(default_factory=fuiFillStyle)
-    vert_index:int = field(default_factory=int)
-    vert_count:int = field(default_factory=int)
+    vert_index:int
+    vert_count:int
 
     def __init__(self, raw_bytes:bytes):
         data = struct.unpack(self.fmt, raw_bytes)
@@ -19,5 +19,5 @@ class fuiShapeComponent(fuiObject):
         self.vert_index = data[9]
         self.vert_count = data[10]
 
-    def pack(self) -> bytearray:
-        return bytearray(struct.pack(self.fmt, *self.fillInfo, self.vert_index, self.vert_count))
+    def pack(self) -> bytes:
+        return struct.pack(self.fmt, *self.fillInfo, self.vert_index, self.vert_count)

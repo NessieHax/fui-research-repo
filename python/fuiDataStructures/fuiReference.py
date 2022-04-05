@@ -7,9 +7,9 @@ from fuiDataStructures.fuiObject import fuiObject
 class fuiReference(fuiObject):
     fmt = "<i64si"
 
-    symbol_index:int = field(default_factory=int)
-    reference:str = field(default_factory=str)
-    fui_file_index:int = field(default_factory=int)#
+    symbol_index:int
+    reference:str
+    fui_file_index:int
 
     def __init__(self, raw_bytes:bytes):
         data = struct.unpack(self.fmt, raw_bytes)
@@ -17,5 +17,5 @@ class fuiReference(fuiObject):
         self.reference = data[1].decode('UTF-8').strip("\0")
         self.fui_file_index = data[2]
 
-    def pack(self) -> bytearray:
-        return bytearray(struct.pack(self.fmt, self.symbol_index, self.reference.encode('UTF-8'), self.fui_file_index))
+    def pack(self) -> bytes:
+        return struct.pack(self.fmt, self.symbol_index, self.reference.encode('UTF-8'), self.fui_file_index)

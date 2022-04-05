@@ -11,5 +11,5 @@ class fuiImportAsset(fuiObject):
     def __init__(self, raw_bytes:bytes):
         self.import_name = struct.unpack(self.fmt, raw_bytes)[0].decode('UTF-8').strip("\0")
 
-    def pack(self) -> bytearray:
-        return bytearray(struct.pack(self.fmt, self.import_name.encode('UTF-8')))
+    def pack(self) -> bytes:
+        return struct.pack(self.fmt, self.import_name.encode('UTF-8'))

@@ -8,12 +8,13 @@ from fuiDataStructures.fuiObject import fuiObject
 class fuiTimeline(fuiObject):
     fmt = f"<i4h{fuiRect.fmt}"
 
-    symbol_index:int = field(default_factory=int)
-    frame_index:int = field(default_factory=int)
-    frame_count:int = field(default_factory=int)
-    action_index:int = field(default_factory=int)
-    action_count:int = field(default_factory=int)
+    symbol_index:int
+    frame_index:int
+    frame_count:int
+    action_index:int
+    action_count:int
     rect:fuiRect = field(default_factory=fuiRect)
+
     def __init__(self, raw_bytes:bytes):
         data = struct.unpack(self.fmt, raw_bytes)
         self.symbol_index = data[0]
@@ -23,5 +24,5 @@ class fuiTimeline(fuiObject):
         self.action_count = data[4]
         self.rect = fuiRect(data[5], data[6], data[7], data[8])
 
-    def pack(self) -> bytearray:
-        return bytearray(struct.pack(self.fmt, self.symbol_index, self.frame_index, self.frame_count, self.action_index, self.action_count, *self.rect))
+    def pack(self) -> bytes:
+        return struct.pack(self.fmt, self.symbol_index, self.frame_index, self.frame_count, self.action_index, self.action_count, *self.rect)

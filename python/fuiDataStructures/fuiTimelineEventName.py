@@ -7,10 +7,10 @@ from fuiDataStructures.fuiObject import fuiObject
 class fuiTimelineEventName(fuiObject):
     fmt = "<64s"
 
-    name:str = field(default_factory=str)
+    name:str
 
     def __init__(self, raw_bytes:bytes):
         self.name = struct.unpack(self.fmt, raw_bytes)[0].decode('UTF-8').strip("\0")
 
-    def pack(self) -> bytearray:
-        return bytearray(struct.pack(self.fmt, self.name.encode('UTF-8')))
+    def pack(self) -> bytes:
+        return struct.pack(self.fmt, self.name.encode('UTF-8'))

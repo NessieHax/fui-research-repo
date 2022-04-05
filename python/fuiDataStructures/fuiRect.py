@@ -4,8 +4,8 @@ from dataclasses import dataclass, field
 class fuiRect:
     fmt = "4f"
 
-    x:tuple = field(default_factory=tuple)
-    y:tuple = field(default_factory=tuple)
+    x:tuple
+    y:tuple
 
     def __init__(self, min_x:float, max_x:float, min_y:float, max_y:float):
         self.x = (min_x, max_x)
