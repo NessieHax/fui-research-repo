@@ -7,32 +7,32 @@ FUI Files are Mojangs/4J's way of storing Game UI Assets.
 The following Table gives you Important information about each structure that can be represented in a FUI file:
 | Name | Size (per element) | Description |
 | :-:|:-:|:-:|
-| fuiHeader | 0x98 | Header Information (only exists once in each FUI file, always at offset 0)
-| fuiTimeline | 0x1c | 
-| fuiTimelineAction | 0x84 | 
-| fuiShape | 0x1c | 
-| fuiShapeComponent | 0x2c | 
-| fuiVert | 0x8 | 2D float Vertex
-| fuiTimelineFrame | 0x48 | 
-| fuiTimelineEvent | 0x48 | 
-| fuiTimelineEventName | 0x40 | Name for a given event
-| fuiReference | 0x48 | Reference to Symbols in Imported Assests(Files)
-| fuiEdittext | 0x138 | 
-| fuiFontName | 0x104 | 
-| fuiSymbol | 0x48 | Defined Symbols with Name and Object type (entry point for objects used in-game)
-| fuiImportAsset | 0x40 | file name to import references from
-| fuiBitmap | 0x20 | Information about an Image contained in the file
+| [fuiHeader](./DOCUMENTATION.md#fui-header) | 0x98 | Header Information (only exists once in each FUI file, always at offset 0)
+| [fuiTimeline](./DOCUMENTATION.md#fuiTimeline) | 0x1c | 
+| [fuiTimelineAction](./DOCUMENTATION.md#fuitimelineaction) | 0x84 | 
+| [fuiShape](./DOCUMENTATION.md#fuishape) | 0x1c | 
+| [fuiShapeComponent](./DOCUMENTATION.md#fuishapecomponent) | 0x2c | 
+| [fuiVert](./DOCUMENTATION.md#fuiVert) | 0x8 | 2D float Vertex
+| [fuiTimelineFrame](./DOCUMENTATION.md#fuitimelineframe) | 0x48 | 
+| [fuiTimelineEvent](./DOCUMENTATION.md#fuitimelineevent) | 0x48 | 
+| [fuiTimelineEventName](./DOCUMENTATION.md#fuitimelineeventname) | 0x40 | Name for a given event
+| [fuiReference](./DOCUMENTATION.md#fuireference) | 0x48 | Reference to Symbols in Imported Assests(Files)
+| [fuiEdittext](./DOCUMENTATION.md#fuiedittext) | 0x138 | 
+| [fuiFontName](./DOCUMENTATION.md#fuifontname) | 0x104 | 
+| [fuiSymbol](./DOCUMENTATION.md#fuisymbol) | 0x48 | Defined Symbols with Name and Object type (entry point for objects used in-game)
+| [fuiImportAsset](./DOCUMENTATION.md#fuiimportasset) | 0x40 | file name to import references from
+| [fuiBitmap](./DOCUMENTATION.md#fuibitmap) | 0x20 | Information about an Image contained in the file
 
 ### Used structures in an FUI element
 These structures are used in some Elements in an FUI file
 | Name | Byte Size | Description |
 | :-:|:-:|:-:|
-| fuiRect | 0x10 | A Representation of a Rectangle
-| fuiRGBA | 0x4 | Base Color format used in FUI files
-| fuiMatrix | 0x18 | 2D Matrix for Scale, Rotation and Translation
-| fuiColorTransform | 0x20 | 
-| fuiFillStyle | 0x24 | Contains Information for filling
-| fuiObject.eFuiObjectType | 0x4 | Describes the Type of an Element
+| [fuiRect](./DOCUMENTATION.md#fuiRect) | 0x10 | A Representation of a Rectangle
+| [fuiRGBA](./DOCUMENTATION.md#fuiRGBA) | 0x4 | Base Color format used in FUI files
+| [fuiMatrix](./DOCUMENTATION.md#fuimatrix) | 0x18 | 2D Matrix for Scale, Rotation and Translation
+| [fuiColorTransform](./DOCUMENTATION.md#fuicolortransform) | 0x20 | 
+| [fuiFillStyle](./DOCUMENTATION.md#fuifillstyle) | 0x24 | Contains Information for filling
+| [fuiObject.eFuiObjectType](./python/fuiDataStructures/fuiObject.py#L3) | 0x4 | Describes the Type of an Element
 
 ## fuiRect
 
@@ -125,8 +125,9 @@ allocating memory at runtime, counts of fui Objects and is part of the in-game `
 
 | Name | Offset | Byte Size | Type | Description |
 | :-:|:-:|:-:|:-:|:-:|
-| Action Type | 0x0 | 2 | short | action to make
-| Unknown | 0x2 | 2 | short | Probably Value Arg0 for specific Action types
+| Action Type | 0x0 | 1 | uint8_t | action to make
+| Unknown  | 0x1 | 1 | uint8_t | 
+| Frame Index | 0x2 | 2 | short | 
 | String Arg 0 | 0x4 | 0x40 | char[] | 
 | String Arg 1 | 0x44 | 0x40 | char[] | 
 
@@ -167,12 +168,14 @@ allocating memory at runtime, counts of fui Objects and is part of the in-game `
 
 | Name | Offset | Byte Size | Type | Description |
 | :-:|:-:|:-:|:-:|:-:|
-| Event Type | 0x0 | 0x2 | short | 
-| Object Type | 0x2 | 0x2 | short | 
+| Event Type | 0x0 | 0x1 | uint8_t | 
+| Unknown | 0x1 | 0x1 | uint8_t | 
+| Object Type | 0x2 | 0x2 | uint8_t | 
+| Unknown | 0x3 | 0x1 | uint8_t | 
 | Unknown | 0x4 | 0x2 | short | 
 | Index | 0x6 | 0x2 | short | 
 | Unknown | 0x8 | 0x2 | short | 
-| Name Index | 0xa | 0x2 | short | 
+| Name Index | 0xa | 0x2 | short | index to look up in `fuiTimelineEventName` buffer
 | matrix | 0xc | 0x18 | fuiMatrix | 
 | ColorTransform | 0x24 | 0x20 | fuiColorTransform | Useless
 | Color | 0x44 | 4 | fuiRGBA |
@@ -188,7 +191,7 @@ allocating memory at runtime, counts of fui Objects and is part of the in-game `
 | Name | Offset | Byte Size | Type | Description |
 | :-:|:-:|:-:|:-:|:-:|
 | Symbol Index | 0x0 | 4 | int | Index of Symbol (resolved at runtime)
-| Name | 0x4 | 0x40 | char[] | Reference to a Symbol that is contained in an Import file
+| Name | 0x4 | 0x40 | char[] | Reference to a Symbol that is contained in an Import asset
 | Index | 0x44 | 4 | int | fuiFile Index (resolved at runtime)
 
 ## fuiEdittext
@@ -213,9 +216,11 @@ TODO: get proper names and types!
 | Font Name | 0x4 | 0x40 | char[] | Name of the Font
 | Unknown | 0x44 | 4 | int | 
 | Unknown | 0x48 | 0x40 | char[] | 
-| Unknown | 0x88 | 8 | int | 2 Unknown ints
+| Unknown | 0x88 | 4 | int | 
+| Unknown | 0x8C | 4 | int | 
 | Unknown | 0x90 | 0x40 | char[] | 
-| Unknown | 0xd0 | 8 | int | 2 Unknown ints
+| Unknown | 0xd0 | 4 | int | 
+| Unknown | 0xd4 | 4 | int | 
 | Unknown | 0xd8 | 0x2c | char[] | 
 
 ## fuiSymbol
@@ -234,15 +239,13 @@ TODO: get proper names and types!
 
 ## fuiBitmap
 
-**Important**: _PNG files use BGRA instead of RGBA!_
-
 | Name | Offset | Byte Size | Type | Description |
 | :-:|:-:|:-:|:-:|:-:|
-| Unknown | 0x0 | 4 | int | Could be some kind of id
-| Image Format | 0x4 | 4 | int | Format to use ([see fuiBitmap](./python/fuiDataStructures/fuiBitmap.py))
+| Symbol Index | 0x0 | 4 | int | Index of a given symbol (-1 if not set).
+| Format | 0x4 | 4 | int | Format to use ([see fuiBitmap](./python/fuiDataStructures/fuiBitmap.py#L9)).
 | Width | 0x8 | 4 | int | Width of the given Image (possiblly used for memory allocation)
 | Height | 0xc | 4 | int | Height of the given Image (possiblly used for memory allocation)
 | Offset | 0x10 | 4 | int | Offset of the Image
 | Size | 0x14 | 4 | int | Size of the image
-| Zlib Data Offset | 0x18 | 4 | int | zlib data start offset (only set when using `JPEG_WITH_ALPHA_DATA`)
-| Unknown | 0x1c | 4 | int | -1 if something failed at runtime
+| Zlib Data Offset | 0x18 | 4 | int | zlib data start offset (only set when `JPEG_WITH_ALPHA_DATA` is set)
+| Texture handle | 0x1c | 4 | int | when set to 0 it'll auto generate the required texture buffer else look it up in a loaded texture map
