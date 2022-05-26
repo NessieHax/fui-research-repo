@@ -22,6 +22,7 @@ The following Table gives you Important information about each structure that ca
 | [fuiSymbol](./DOCUMENTATION.md#fuisymbol) | 0x48 | Defined Symbols with Name and Object type (entry point for objects used in-game)
 | [fuiImportAsset](./DOCUMENTATION.md#fuiimportasset) | 0x40 | file name to import references from
 | [fuiBitmap](./DOCUMENTATION.md#fuibitmap) | 0x20 | Information about an Image contained in the file
+| Image Data | vary | Image data where all color channels are swapped (RGBA => ABGR). only affects png files
 
 ### Used structures in an FUI element
 These structures are used in some Elements in an FUI file
