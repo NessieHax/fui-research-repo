@@ -8,6 +8,7 @@ from fuiDataStructures.fuiFillStyle import fuiFillStyle
 @dataclass(init=False)
 class fuiShapeComponent(fuiObject):
     fmt = f"<{fuiFillStyle.fmt}2i"
+    size = struct.calcsize(fmt)
 
     fillInfo:fuiFillStyle = field(default_factory=fuiFillStyle)
     vert_index:int

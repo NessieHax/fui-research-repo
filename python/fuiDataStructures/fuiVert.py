@@ -6,6 +6,7 @@ from fuiDataStructures.fuiObject import fuiObject
 @dataclass(init=False)
 class fuiVert(fuiObject):
     fmt = "<2f"
+    size = struct.calcsize(fmt)
 
     x:float
     y:float

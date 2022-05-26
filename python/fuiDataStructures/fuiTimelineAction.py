@@ -6,12 +6,15 @@ from fuiDataStructures.fuiObject import fuiObject
 @dataclass(init=False)
 class fuiTimelineAction(fuiObject):
     fmt = "<2bh64s64s"
+    size = struct.calcsize(fmt)
 
-    action_type:int = field(default_factory=int)
-    unkn_0x1:int = field(default_factory=int)
-    frame_index:int = field(default_factory=int) #! -1 if not needed/used
-    action_arg0:str = field(default_factory=str)
-    action_arg1:str = field(default_factory=str)
+    #! fuiRenderNodeTimeline::handleConstruction
+    #! TODO
+    action_type:int
+    unkn_0x1:int
+    frame_index:int #! -1 if not needed/used
+    action_arg0:str
+    action_arg1:str
 
     def __init__(self, raw_bytes:bytes):
         data = struct.unpack(self.fmt, raw_bytes)

@@ -5,6 +5,7 @@ from fuiDataStructures.fuiObject import fuiObject
 @dataclass(init=False)
 class fuiSymbol(fuiObject):
     fmt = "<64s2i"
+    size = struct.calcsize(fmt)
 
     name:str
     obj_type:int

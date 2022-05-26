@@ -1,181 +1,86 @@
-import struct, os, cv2
-from dataclasses import dataclass, field
+from io import BufferedReader
+import os, cv2
 
-from fuiDataStructures.fuiObject import fuiObject
 from fuiDataStructures.fuiHeader import fuiHeader
 from fuiDataStructures.fuiObject import eFuiObjectType
-from fuiDataStructures.fuiImportAsset import fuiImportAsset
 from fuiDataStructures.fuiBitmap import fuiBitmap
-from fuiDataStructures.fuiSymbol import fuiSymbol
 from fuiDataStructures.fuiTimeline import fuiTimeline
-from fuiDataStructures.fuiReference import fuiReference
-from fuiDataStructures.fuiVert import fuiVert
-from fuiDataStructures.fuiTimelineEvent import fuiTimelineEvent
-from fuiDataStructures.fuiTimelineFrame import fuiTimelineFrame
-from fuiDataStructures.fuiTimelineEventName import fuiTimelineEventName
-from fuiDataStructures.fuiTimelineAction import fuiTimelineAction
-from fuiDataStructures.fuiShape import fuiShape
-from fuiDataStructures.fuiShapeComponent import fuiShapeComponent
-from fuiDataStructures.fuiEdittext import fuiEdittext
-from fuiDataStructures.fuiFontName import fuiFontName
 from fuiUtil import get_zlib_buf_size, insert_zlib_alpha_channel_data, decode_image, swap_image_data
-
-@dataclass
-class HeaderInfo:
-    count:int = field(default_factory=int)
-    element_size:int = field(default_factory=int)
-    section_size:int = field(default_factory=int)
-    repr_cls:fuiObject = field(repr=False, default_factory=fuiObject)
-
-def makeHeaderInfo(data:list , index:int, element_size:int, cls:fuiObject = None) -> HeaderInfo:
-    return HeaderInfo(data[index], element_size, data[index]*element_size, cls)
-
+from fuiFile import fuiFile
 
 class FUIParserError(Exception): ...
 
 class fuiParser:
-    def __init__(self, file_name:str):
-        if not file_name.endswith(".fui"): raise FUIParserError("Not a fui file")
-        with open(file_name, "rb") as fui_fd:
-            self.__fui_data = fui_fd.read()
-        self.__header:fuiHeader = fuiHeader(self.__fui_data[:fuiHeader.header_size])
-        self.__HeaderDataInfo:dict = {
-            "fuiTimeline"           : makeHeaderInfo(self.__header.data_counts, 0, 0x1c, fuiTimeline), #! 0x4c
-            "fuiTimelineAction"     : makeHeaderInfo(self.__header.data_counts, 2, 0x84, fuiTimelineAction), #! 0x54
-            "fuiShape"              : makeHeaderInfo(self.__header.data_counts, 3, 0x1c, fuiShape), #! 0x58
-            "fuiShapeComponent"     : makeHeaderInfo(self.__header.data_counts, 4, 0x2c, fuiShapeComponent), #! 0x5c
-            "fuiVert"               : makeHeaderInfo(self.__header.data_counts, 5, 0x8, fuiVert), #! 0x60
-            "fuiTimelineFrame"      : makeHeaderInfo(self.__header.data_counts, 6, 0x48, fuiTimelineFrame), #! 0x64
-            "fuiTimelineEvent"      : makeHeaderInfo(self.__header.data_counts, 7, 0x48, fuiTimelineEvent), #! 0x68
-            "fuiTimelineEventName"  : makeHeaderInfo(self.__header.data_counts, 1, 0x40, fuiTimelineEventName), #! 0x50
-            "fuiReference"          : makeHeaderInfo(self.__header.data_counts, 8, 0x48, fuiReference), #! 0x6c
-            "fuiEdittext"           : makeHeaderInfo(self.__header.data_counts, 9, 0x138, fuiEdittext), #! 0x70
-            "fuiFontName"           : makeHeaderInfo(self.__header.data_counts, 13, 0x104, fuiFontName), #! 0x80
-            "fuiSymbol"             : makeHeaderInfo(self.__header.data_counts, 10, 0x48, fuiSymbol), #! 0x74
-            "fuiImportAsset"        : makeHeaderInfo(self.__header.data_counts, 14, 0x40, fuiImportAsset), #! 0x84
-            "fuiBitmap"             : makeHeaderInfo(self.__header.data_counts, 11, 0x20, fuiBitmap), #! 0x78
-            "images_size"           : makeHeaderInfo(self.__header.data_counts, 12, 0x1),  #! 0x7c | ignored/unused
-        }
-        #! dictionary containing fuiObject derived classes
-        self._parsed_objects:dict = {
-            "fuiTimeline" : [],
-            "fuiTimelineAction" : [],
-            "fuiShape" : [],
-            "fuiShapeComponent" : [],
-            "fuiVert" : [],
-            "fuiTimelineFrame" : [],
-            "fuiTimelineEvent" : [],
-            "fuiTimelineEventName" : [],
-            "fuiReference" : [],
-            "fuiEdittext" : [],
-            "fuiFontName" : [],
-            "fuiSymbol" : [],
-            "fuiImportAsset" : [],
-            "fuiBitmap" : [],
-            "images" : [] # list[bytes | bytearray]
-        }
-        self.__parse_fui_objects()
-
-    def validate_class_size(self, section_name:str, cls:fuiObject) -> bool:
-        return self.__HeaderDataInfo[section_name].element_size == struct.calcsize(cls.fmt)
-
-    def is_valid_index(self, section_name:str, index:int) -> bool:
-        return -1 < index < self.__HeaderDataInfo[section_name].count
-
-    def validate_content_size(self) -> bool:
-        size:int = 0
-        for _,hInfo in self.__HeaderDataInfo.items(): size += hInfo.section_size
-        return size == self.__header.content_size
+    def __init__(self, data: BufferedReader):
+        self._fui = fuiFile()
+        self._fui.parse(data)
 
     def validate_folder_dest(self, output_path:str) -> str:
-        output_path = os.path.join(output_path, f"{self.__header.import_name.replace('.swf','')}")
+        output_path = os.path.join(output_path, f"{self._fui.header.import_name.removesuffix('.swf')}")
         if not os.path.exists(output_path):
             os.makedirs(output_path)
         return output_path
 
-    def __parse_fui_objects(self) -> None:
-        for key,data in self.__HeaderDataInfo.items():
-            if data.repr_cls is None: continue
-            self.__parse(key, self._parsed_objects[key])
-        offset = self.get_start_offset_of("images_size")
-        self._parsed_objects["images"] = [self.__get_raw_data(offset + bitmap.offset, bitmap.size) for bitmap in self.get_bitmaps()]
-
-    def __parse(self, section_name:str, container:list) -> None:
-        cls = self.__HeaderDataInfo[section_name].repr_cls
-        if not self.validate_class_size(section_name, cls): raise FUIParserError("Class does not contain the required size!")
-        for i in range(self.__HeaderDataInfo[section_name].count):
-            offset = self.__get_indexed_offset(section_name, i)
-            data_size = self.__HeaderDataInfo[section_name].element_size
-            container.append(cls(self.__get_raw_data(offset, data_size)))
- 
-    def __get_raw_data(self, offset:int, size:int) -> bytearray:
-        return bytearray(self.__fui_data[offset:offset+size])
-
-    def __get_indexed_offset(self, section_name:str, index:int = 0) -> int:
-        if not self.is_valid_index(section_name, index): raise IndexError("Index out of range")
-        return self.get_start_offset_of(section_name) + index * self.__HeaderDataInfo[section_name].element_size
-
     def get_header(self) -> fuiHeader:
-        return self.__header
+        return self._fui.header
 
     def get_imported_assets(self) -> list:
-        return self._parsed_objects["fuiImportAsset"]
+        return self._fui.import_assets
 
-    def get_fonts(self) -> list:
-        return self._parsed_objects["fuiFontName"]
+    def get_font_names(self) -> list:
+        return self._fui.font_names
 
     #! EXISTING string editing is not recommented due to not being sure if it could mess up the classes that init with it
     def get_symbols(self) -> list:
-        return self._parsed_objects["fuiSymbol"]
+        return self._fui.symbols
 
     def get_timeline_frames(self) -> list:
-        return self._parsed_objects["fuiTimelineFrame"]
+        return self._fui.timeline_frames
 
     def get_timeline_actions(self) -> list:
-        return self._parsed_objects["fuiTimelineAction"]
+        return self._fui.timeline_actions
 
     def get_references(self) -> list:
-        return self._parsed_objects["fuiReference"]
+        return self._fui.references
 
     def get_bitmaps(self) -> list:
-        return self._parsed_objects["fuiBitmap"]
+        return self._fui.bitmaps
 
     def get_timeline_events(self) -> list:
-        return self._parsed_objects["fuiTimelineEvent"]
+        return self._fui.timeline_events
 
     def get_timeline_event_names(self) -> list:
-        return self._parsed_objects["fuiTimelineEventName"]
+        return self._fui.timeline_event_names
     
     def get_timelines(self) -> list:
-        return self._parsed_objects["fuiTimeline"]
+        return self._fui.timelines
 
     def get_verts(self) -> list:
-        return self._parsed_objects["fuiVert"]
+        return self._fui.verts
 
     def get_shapes(self) -> list:
-        return self._parsed_objects["fuiShape"]
+        return self._fui.shapes
 
     def get_shape_components(self) -> list:
-        return self._parsed_objects["fuiShapeComponent"]
+        return self._fui.shape_components
 
     def get_edittext(self) -> list:
-        return self._parsed_objects["fuiEdittext"]
+        return self._fui.edittexts
 
     def contains_images(self) -> bool:
         return len(self.get_bitmaps()) > 0
 
-    def __dump_image(self, output_file:str, bitmap:fuiBitmap) -> None:
-        offset = self.get_start_offset_of("images_size") + bitmap.offset
-        data = self.__get_raw_data(offset, bitmap.size)
-        ext, write_flags = ("png", [cv2.IMWRITE_PNG_COMPRESSION]) if (bitmap.format == bitmap.eBitmapFormat.JPEG_WITH_ALPHA_DATA or bitmap.format < 6) else ("jpeg", [cv2.IMWRITE_JPEG_QUALITY])
+    def __dump_image(self, output_file:str, bitmap: fuiBitmap, img: bytes) -> None:
+        data = img
+        ext, write_flags = ("png", [cv2.IMWRITE_PNG_COMPRESSION]) if (bitmap.format == bitmap.eFuiBitmapType.JPEG_WITH_ALPHA_DATA or bitmap.format < 6) else ("jpeg", [cv2.IMWRITE_JPEG_QUALITY])
         filename = f"{output_file}.{ext}"
         print("Dumping:", filename[len(os.getcwd()):])
         img = decode_image(data)
         final_image = img
-        if bitmap.format == fuiBitmap.eBitmapFormat.JPEG_WITH_ALPHA_DATA:
+        if bitmap.format == fuiBitmap.eFuiBitmapType.JPEG_WITH_ALPHA_DATA:
             final_image = cv2.cvtColor(final_image, cv2.COLOR_RGB2RGBA) #! create alpha channel
             zlib_buf_sz = get_zlib_buf_size(bitmap)
-            zlib_data = self.__get_raw_data(offset + bitmap.zlib_data_start, zlib_buf_sz)
+            zlib_data =  data[bitmap.zlib_data_start:]
             final_image = insert_zlib_alpha_channel_data(final_image, zlib_data, zlib_buf_sz)
         elif bitmap.format < 6:
             final_image = swap_image_data(img, "fui_out")
@@ -192,7 +97,7 @@ class fuiParser:
         for symbol in self.get_symbols():
             if symbol.obj_type != eFuiObjectType.BITMAP: continue
             bitmap = bitmaps[symbol.index]
-            self.__dump_image(f"{os.path.join(output_path, symbol.name)}", bitmap)
+            self.__dump_image(f"{os.path.join(output_path, symbol.name)}", bitmap, self._fui.images[symbol.index])
             count += 1
         print("Successfully dumped all images!\n" if count == len(bitmaps) else "", end="")
 
@@ -201,16 +106,16 @@ class fuiParser:
             print("This fui file does not contain any images")
             return
         output_path = self.validate_folder_dest(output_path)
-        [self.__dump_image(os.path.join(output_path, f"image_{i}"), bitmap) for i, bitmap in enumerate(self.get_bitmaps())]
+        [self.__dump_image(os.path.join(output_path, f"image_{i}"), bitmap, self._fui.images[i]) for i, bitmap in enumerate(self.get_bitmaps())]
 
-    def replace_bitmap(self, index:int, img_data:bytes, img_type:fuiBitmap.eBitmapFormat = fuiBitmap.eBitmapFormat.PNG_WITH_ALPHA_DATA) -> None:
+    def replace_bitmap(self, index:int, img_data:bytes, img_type:fuiBitmap.eFuiBitmapType = fuiBitmap.eFuiBitmapType.PNG_WITH_ALPHA_DATA) -> None:
         if not self.is_valid_index("fuiBitmap", index):
             raise IndexError("Invalid Index")
 
         target_bitmap:fuiBitmap = self.get_bitmaps()[index]
 
         tmp_img_data = decode_image(img_data)
-        if img_type == fuiBitmap.eBitmapFormat.PNG_NO_ALPHA_DATA or img_type == fuiBitmap.eBitmapFormat.PNG_WITH_ALPHA_DATA:
+        if img_type == fuiBitmap.eFuiBitmapType.PNG_NO_ALPHA_DATA or img_type == fuiBitmap.eFuiBitmapType.PNG_WITH_ALPHA_DATA:
             tmp_img_data = swap_image_data(tmp_img_data)
         final_img_data:bytearray = bytearray(cv2.imencode(".png", tmp_img_data)[1].tobytes())
 
@@ -234,24 +139,16 @@ class fuiParser:
         self.__header.content_size += offset_diff
         print(f"Successfully changed '{self.get_symbols()[bitmap.symbol_index]}'")
 
-    def get_start_offset_of(self, section_name:str) -> int:
-        if section_name not in self.__HeaderDataInfo.keys() or self.__HeaderDataInfo[section_name].count == 0: return -1
-        offset:int = self.__header.header_size
-        for key, header_info in self.__HeaderDataInfo.items():
-            if key == section_name: return offset
-            offset += header_info.section_size
-        return -1
-
     def find(self, name:str) -> tuple[fuiBitmap | fuiTimeline] | None:
         results:tuple = ()
         for symbol in self.get_symbols():
             if name.lower() in symbol.name.lower():
                 caller, data_type = (self.get_bitmaps, 'fuiBitmap') if symbol.obj_type == eFuiObjectType.BITMAP else (self.get_timelines, 'fuiTimeline')
                 data = caller()[symbol.index]
-                print(f"{symbol.name} | Offset: {self.__get_indexed_offset(data_type, symbol.index)} | {data}")
+                print(f"{symbol.name} | Offset: {'TODO'} | {data}")
                 results += (data,)
         if len(results) > 0: return results
         raise FUIParserError(f"Could not find Symbol named '{name}'")
 
     def __str__(self) -> str:
-       return self.__header.__str__()
+       return self._fui.header.__str__()

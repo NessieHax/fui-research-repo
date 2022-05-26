@@ -6,6 +6,7 @@ from fuiDataStructures.fuiObject import fuiObject
 @dataclass(init=False)
 class fuiReference(fuiObject):
     fmt = "<i64si"
+    size = struct.calcsize(fmt)
 
     symbol_index:int
     reference:str

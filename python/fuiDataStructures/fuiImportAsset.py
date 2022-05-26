@@ -5,6 +5,7 @@ import struct
 @dataclass(init=False)
 class fuiImportAsset(fuiObject):
     fmt = "<64s"
+    size = struct.calcsize(fmt)
 
     import_name:str = field(default_factory=str)
 

@@ -6,6 +6,7 @@ from fuiDataStructures.fuiObject import fuiObject
 @dataclass(init=False)
 class fuiTimelineEventName(fuiObject):
     fmt = "<64s"
+    size = struct.calcsize(fmt)
 
     name:str
 

@@ -7,6 +7,7 @@ from fuiDataStructures.fuiRect import fuiRect
 @dataclass(init=False)
 class fuiShape(fuiObject):
     fmt = "<3i4f"
+    size = struct.calcsize(fmt)
 
     unk_0x0:int
     component_index:int

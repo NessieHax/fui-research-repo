@@ -8,6 +8,7 @@ from fuiDataStructures.fuiColorTransform import fuiColorTransform
 @dataclass(init=False)
 class fuiTimelineEvent(fuiObject):
     fmt = f"<4b4h{fuiMatrix.fmt}{fuiColorTransform.fmt}I"
+    size = struct.calcsize(fmt)
 
     event_type:int
     unkn_0x1:int
@@ -17,7 +18,7 @@ class fuiTimelineEvent(fuiObject):
     index:int
     unkn_0x8:int
     name_index:int
-    matrix:fuiMatrix = field(default_factory=fuiMatrix)
+    matrix:fuiMatrix = field(default_factory=fuiMatrix, repr=False)
     ColorTransform:fuiColorTransform = field(default_factory=fuiColorTransform, repr=False)
     color:int = field(repr=False)
 

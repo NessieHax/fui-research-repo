@@ -7,6 +7,7 @@ from fuiDataStructures.fuiObject import fuiObject
 @dataclass(init=False)
 class fuiTimeline(fuiObject):
     fmt = f"<i4h{fuiRect.fmt}"
+    size = struct.calcsize(fmt)
 
     symbol_index:int
     frame_index:int
